@@ -82,6 +82,7 @@ struct FinalizeDecisionView: View {
 
         return ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
+                CoinStrikeFeatureBanner(asset: "CoinStrikeFinalize")
 
                 if !report.blockers.isEmpty {
                     POPBanner(

@@ -22,6 +22,15 @@
          <TestableReference skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "BB00000000000000000001"
+               BuildableName = "ProofOfPathTests.xctest"
+               BlueprintName = "ProofOfPathTests"
+               ReferencedContainer = "container:ProofOfPath.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "AA00000000000000000001"
                BuildableName = "ProofOfPathUITests.xctest"
                BlueprintName = "ProofOfPathUITests"

@@ -45,6 +45,7 @@ struct OpenQuestionsView: View {
     private func content(_ decision: Decision) -> some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
+                CoinStrikeFeatureBanner(asset: "CoinStrikeQuestions")
                 summary(decision)
 
                 if unresolved.isEmpty {

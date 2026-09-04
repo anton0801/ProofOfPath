@@ -16,6 +16,7 @@ struct TemplatesView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
+                CoinStrikeFeatureBanner(asset: "CoinStrikeTemplates")
                 POPBanner(
                     kind: .neutral,
                     message: "A structure is a starting point, not a filled-in decision.",

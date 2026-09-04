@@ -30,6 +30,7 @@ enum AppReducer {
     // MARK: - Entry point
 
     static func reduce(state: AppState, intent: AppIntent) -> ReduceResult {
+        let previous = state
         var state = state
         var effects: [AppEffect] = []
 
@@ -1142,7 +1143,91 @@ enum AppReducer {
             state.toast = Toast(message: "Marked as completed", style: .success)
         }
 
+        recordSyncBookkeeping(previous: previous, current: &state, intent: intent)
         return ReduceResult(state: state, effects: effects)
+    }
+
+    // MARK: - Sync bookkeeping
+
+    /// Keeps the outbox and tombstones in step with what actually changed.
+    ///
+    /// Done centrally by diffing the state rather than inside each of the sixty
+    /// intent cases, so a new intent cannot forget to enqueue itself.
+    ///
+    /// It only runs while an account is syncing. Local-only installs pay nothing
+    /// and their data file stays lean; the first sign-in uploads the current
+    /// state as the baseline, so there is nothing to reconcile from before.
+    private static func recordSyncBookkeeping(previous: AppState, current: inout AppState, intent: AppIntent) {
+        switch intent {
+        case .replaceAllData:
+            // An imported backup is a fresh baseline, not sixty local edits.
+            current.outbox = []
+            current.tombstones = []
+            return
+        case .deleteAllData:
+            guard current.account.isSyncing else { return }
+            current.outbox = []
+            current.tombstones = previous.decisions.map {
+                Tombstone(entityID: $0.id, kind: .decision, remoteID: $0.sync.remoteID)
+            } + previous.evidence.map {
+                Tombstone(entityID: $0.id, kind: .evidence, remoteID: $0.sync.remoteID)
+            }
+            return
+        default:
+            break
+        }
+
+        guard current.account.isSyncing else { return }
+
+        let previousDecisions = Dictionary(uniqueKeysWithValues: previous.decisions.map { ($0.id, $0) })
+        let previousEvidence = Dictionary(uniqueKeysWithValues: previous.evidence.map { ($0.id, $0) })
+
+        for index in current.decisions.indices {
+            let decision = current.decisions[index]
+            guard let before = previousDecisions[decision.id] else {
+                enqueue(&current, entityID: decision.id, kind: .decision, operation: .upsert)
+                continue
+            }
+            if before.updatedAt != decision.updatedAt {
+                current.decisions[index].sync.markDirty()
+                enqueue(&current, entityID: decision.id, kind: .decision, operation: .upsert)
+            }
+        }
+
+        for index in current.evidence.indices {
+            let item = current.evidence[index]
+            guard let before = previousEvidence[item.id] else {
+                enqueue(&current, entityID: item.id, kind: .evidence, operation: .upsert)
+                continue
+            }
+            if before.updatedAt != item.updatedAt {
+                current.evidence[index].sync.markDirty()
+                enqueue(&current, entityID: item.id, kind: .evidence, operation: .upsert)
+            }
+        }
+
+        let currentDecisionIDs = Set(current.decisions.map(\.id))
+        for removed in previous.decisions where !currentDecisionIDs.contains(removed.id) {
+            current.tombstones.append(
+                Tombstone(entityID: removed.id, kind: .decision, remoteID: removed.sync.remoteID)
+            )
+            current.outbox.removeAll { $0.entityID == removed.id }
+        }
+
+        let currentEvidenceIDs = Set(current.evidence.map(\.id))
+        for removed in previous.evidence where !currentEvidenceIDs.contains(removed.id) {
+            current.tombstones.append(
+                Tombstone(entityID: removed.id, kind: .evidence, remoteID: removed.sync.remoteID)
+            )
+            current.outbox.removeAll { $0.entityID == removed.id }
+        }
+    }
+
+    /// One queued entry per record: the transport sends the current shape, so a
+    /// second edit replaces the first rather than stacking behind it.
+    private static func enqueue(_ state: inout AppState, entityID: UUID, kind: SyncEntityKind, operation: MutationOperation) {
+        state.outbox.removeAll { $0.entityID == entityID && $0.kind == kind }
+        state.outbox.append(PendingMutation(entityID: entityID, kind: kind, operation: operation))
     }
 
     // MARK: - Helpers

@@ -15,15 +15,19 @@ final class AppStore {
 
     private(set) var state: AppState
 
-    @ObservationIgnored private let repository: DataRepository
+    /// The app talks to a backend, not to a file. `LocalBackend` is the only
+    /// implementation today; a remote one slots in here without touching the
+    /// reducer, the state or any view.
+    @ObservationIgnored private let backend: DecisionBackend
     @ObservationIgnored private let attachments: AttachmentStore
+    @ObservationIgnored private(set) lazy var sync = SyncCoordinator(backend: backend)
 
     init(
-        repository: DataRepository = .shared,
+        backend: DecisionBackend = LocalBackend(),
         attachments: AttachmentStore = .shared,
         initialState: AppState? = nil
     ) {
-        self.repository = repository
+        self.backend = backend
         self.attachments = attachments
         if let initialState {
             self.state = initialState
@@ -33,15 +37,20 @@ final class AppStore {
             // made to wipe a real user's data by launching it with an argument.
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-POPResetData") {
-                repository.deleteStore()
+                backend.deleteStore()
                 attachments.deleteAll()
             }
             #endif
             var loaded = AppState()
-            let data = repository.load()
+            var data = backend.load()
+            // Materialised once so the device identifier stays stable.
+            data.ensureAccountRecord()
             loaded.decisions = data.decisions
             loaded.evidence = data.evidence
             loaded.settings = data.settings
+            loaded.tombstones = data.tombstones
+            loaded.outbox = data.outbox
+            loaded.account = data.account
             loaded.isLoaded = true
             #if DEBUG
             // Lets a UI test start on Home when onboarding is not what it is
@@ -72,7 +81,7 @@ final class AppStore {
             break
 
         case .persist:
-            repository.save(state.data)
+            backend.save(state.data)
 
         case .deleteAttachments(let fileNames):
             attachments.delete(fileNames)
@@ -95,9 +104,38 @@ final class AppStore {
         }
     }
 
+    // MARK: - Sync
+
+    /// Where the user's data currently lives, for display in Settings.
+    var storageDescription: String { backend.storageDescription }
+
+    /// True once a server backend is installed.
+    var isSyncAvailable: Bool { backend.isRemote }
+
+    /// Records still waiting to reach a server. Always zero while local-only.
+    var pendingSyncCount: Int { state.pendingSyncCount }
+
+    /// Runs one sync cycle. Returns `.notConfigured` while the app is local-only,
+    /// so callers written today behave correctly once a server exists.
+    @discardableResult
+    func synchronize() async -> SyncOutcome {
+        let outcome = await sync.synchronize(state.data)
+        switch outcome {
+        case .applied, .upToDate:
+            state.account.lastSuccessfulSyncAt = Date()
+            state.account.lastSyncError = nil
+            backend.save(state.data)
+        case .failed(let reason):
+            state.account.lastSyncError = reason
+        case .notConfigured:
+            break
+        }
+        return outcome
+    }
+
     /// Write immediately — called when the scene leaves the foreground.
     func flush() {
-        repository.flush(state.data)
+        backend.flush(state.data)
     }
 
     // MARK: - Toast helpers (runtime-only state)
@@ -167,12 +205,12 @@ final class AppStore {
     // MARK: - Export / import
 
     func purgeTemporaryExports() {
-        repository.purgeTemporaryExports()
+        backend.purgeTemporaryExports()
     }
 
     func exportBackup() -> Result<URL, Error> {
         do {
-            return .success(try repository.exportData(state.data))
+            return .success(try backend.exportData(state.data))
         } catch {
             return .failure(error)
         }
@@ -180,7 +218,7 @@ final class AppStore {
 
     func importBackup(from url: URL) -> Result<AppData, Error> {
         do {
-            let data = try repository.importData(from: url)
+            let data = try backend.importData(from: url)
             return .success(data)
         } catch {
             return .failure(error)

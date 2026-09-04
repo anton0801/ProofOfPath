@@ -35,6 +35,7 @@ struct ScenarioLabView: View {
     private func content(_ decision: Decision) -> some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
+                CoinStrikeFeatureBanner(asset: "CoinStrikeScenario")
                 POPBanner(
                     kind: .neutral,
                     message: "The baseline is read-only.",

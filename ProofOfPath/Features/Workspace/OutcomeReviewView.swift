@@ -58,6 +58,7 @@ struct OutcomeReviewView: View {
     private func content(decision: Decision, final: FinalDecision) -> some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
+                CoinStrikeFeatureBanner(asset: "CoinStrikeOutcome")
                 header(decision: decision, final: final)
 
                 if isComplete {

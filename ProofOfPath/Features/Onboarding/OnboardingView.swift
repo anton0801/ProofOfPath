@@ -16,7 +16,18 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            POPColor.canvas.ignoresSafeArea()
+            Image(pages[page].backgroundAsset)
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+
+            LinearGradient(
+                colors: [Color.black.opacity(0.46), Color(hex: 0x020A1C).opacity(0.90)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Skip
@@ -29,7 +40,7 @@ struct OnboardingView: View {
                         }) {
                             Text("Skip")
                                 .font(POPFont.calloutMedium)
-                                .foregroundStyle(POPColor.inkSecondary)
+                                .foregroundStyle(.white.opacity(0.86))
                                 .padding(.horizontal, 12)
                                 .frame(height: 40)
                         }
@@ -55,7 +66,7 @@ struct OnboardingView: View {
                 HStack(spacing: 7) {
                     ForEach(0..<pages.count, id: \.self) { index in
                         Capsule()
-                            .fill(index == page ? POPColor.brandOrange : POPColor.hairline)
+                            .fill(index == page ? POPColor.brandYellow : .white.opacity(0.28))
                             .frame(width: index == page ? 22 : 7, height: 7)
                             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: page)
                     }
@@ -76,7 +87,7 @@ struct OnboardingView: View {
                     .accessibilityIdentifier(page == pages.count - 1 ? "onboarding.create" : "onboarding.continue")
 
                     if page == pages.count - 1 {
-                        POPTextButton(title: "Explore the app first", tint: POPColor.inkSecondary) {
+                        POPTextButton(title: "Explore the app first", tint: .white.opacity(0.80)) {
                             store.send(.completeOnboarding)
                         }
                         .accessibilityIdentifier("onboarding.explore")
@@ -102,6 +113,7 @@ struct OnboardingPage: Identifiable, Hashable {
     let body: String
     let icon: String
     let bullets: [String]
+    let backgroundAsset: String
 
     static let all: [OnboardingPage] = [
         OnboardingPage(
@@ -113,7 +125,8 @@ struct OnboardingPage: Identifiable, Hashable {
                 "Works fully offline, with no account",
                 "Every number comes from something you entered",
                 "Your reasoning is saved, not just the answer"
-            ]
+            ],
+            backgroundAsset: "CoinStrikeOnboardingVault"
         ),
         OnboardingPage(
             id: 1,
@@ -124,7 +137,8 @@ struct OnboardingPage: Identifiable, Hashable {
                 "Weights must add up to exactly 100%",
                 "Must-Have criteria disqualify options that fail them",
                 "Reorder and rebalance whenever your priorities move"
-            ]
+            ],
+            backgroundAsset: "CoinStrikeOnboardingGateway"
         ),
         OnboardingPage(
             id: 2,
@@ -135,7 +149,8 @@ struct OnboardingPage: Identifiable, Hashable {
                 "Attach links, photos, documents and notes",
                 "Mark each item as supporting, contradicting or context",
                 "Unverified claims stay visible until you resolve them"
-            ]
+            ],
+            backgroundAsset: "CoinStrikeOnboardingArchive"
         ),
         OnboardingPage(
             id: 3,
@@ -146,7 +161,8 @@ struct OnboardingPage: Identifiable, Hashable {
                 "Start from scratch or from a starting structure",
                 "Compare scenarios before you commit",
                 "Come back after the fact and review the outcome"
-            ]
+            ],
+            backgroundAsset: "CoinStrikeOnboardingCompass"
         )
     ]
 }
@@ -159,19 +175,23 @@ struct OnboardingPageView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 22) {
-                OnboardingArtwork(index: page.id, icon: page.icon)
-                    .frame(height: 190)
-                    .frame(maxWidth: .infinity)
+                Image(systemName: page.icon)
+                    .font(.system(size: 31, weight: .bold))
+                    .foregroundStyle(POPColor.brandYellow)
+                    .frame(width: 68, height: 68)
+                    .background(Circle().fill(Color(hex: 0x061631).opacity(0.72)))
+                    .overlay(Circle().strokeBorder(POPColor.brandYellow.opacity(0.52), lineWidth: 1))
+                    .frame(maxWidth: .infinity, alignment: .center)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text(page.title)
                         .font(POPFont.display(29))
-                        .foregroundStyle(POPColor.ink)
+                        .foregroundStyle(.white)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(page.body)
                         .font(POPFont.body)
-                        .foregroundStyle(POPColor.inkSecondary)
+                        .foregroundStyle(.white.opacity(0.78))
                         .fixedSize(horizontal: false, vertical: true)
                         .lineSpacing(2)
                 }
@@ -181,18 +201,19 @@ struct OnboardingPageView: View {
                         HStack(alignment: .top, spacing: 9) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(POPColor.success)
+                                .foregroundStyle(POPColor.brandYellow)
                                 .padding(.top, 1)
                             Text(bullet)
                                 .font(POPFont.callout)
-                                .foregroundStyle(POPColor.ink)
+                                .foregroundStyle(.white.opacity(0.92))
                                 .fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 0)
                         }
                     }
                 }
                 .padding(13)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(POPColor.surfaceSunk))
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(hex: 0x061631).opacity(0.72)))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(POPColor.brandYellow.opacity(0.32), lineWidth: 1))
 
                 Spacer(minLength: 8)
             }
@@ -204,23 +225,30 @@ struct OnboardingPageView: View {
 
 // MARK: - Artwork
 
-/// Simple built-from-shapes illustrations — no placeholder images, no fake data.
+/// Compact visual marker; the page background carries the full Coin Strike art.
 struct OnboardingArtwork: View {
     let index: Int
     let icon: String
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(POPColor.surfaceSunk)
-
-            switch index {
-            case 0: boardArtwork
-            case 1: weightsArtwork
-            case 2: evidenceArtwork
-            default: pathArtwork
-            }
+            Image(artworkAsset)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+            LinearGradient(colors: [.clear, Color(hex: 0x020A1C).opacity(0.48)], startPoint: .top, endPoint: .bottom)
+            Image(systemName: icon)
+                .font(.system(size: 25, weight: .bold))
+                .foregroundStyle(POPColor.brandYellow)
+                .shadow(color: .black.opacity(0.65), radius: 5)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(POPColor.brandYellow.opacity(0.46), lineWidth: 1))
+    }
+
+    private var artworkAsset: String {
+        ["OlympusCoin", "OlympusCompass", "OlympusScroll", "OlympusOracle"][index]
     }
 
     // Pinned cards connected with a thread.

@@ -169,12 +169,55 @@ struct DecisionOption: Identifiable, Codable, Hashable {
 
 // MARK: - Evidence
 
+enum AttachmentUploadState: String, Codable, Hashable {
+    /// Present on this device only.
+    case localOnly
+    case uploading
+    case uploaded
+    case failed
+}
+
 struct EvidenceAttachment: Codable, Hashable {
     var fileName: String
     var originalName: String
     var byteSize: Int64
     var isImage: Bool
     var addedAt: Date = Date()
+
+    /// Optional-stored for backward compatibility, as with the sync metadata.
+    private var remoteURLStored: String?
+    private var uploadStateStored: String?
+
+    /// Where the file lives on the server once uploaded.
+    var remoteURL: String? {
+        get { remoteURLStored }
+        set { remoteURLStored = newValue }
+    }
+
+    var uploadState: AttachmentUploadState {
+        get { uploadStateStored.flatMap(AttachmentUploadState.init(rawValue:)) ?? .localOnly }
+        set { uploadStateStored = newValue.rawValue }
+    }
+
+    /// Explicit because the private stored properties above make the synthesised
+    /// memberwise initialiser private.
+    init(
+        fileName: String,
+        originalName: String,
+        byteSize: Int64,
+        isImage: Bool,
+        addedAt: Date = Date(),
+        remoteURL: String? = nil,
+        uploadState: AttachmentUploadState = .localOnly
+    ) {
+        self.fileName = fileName
+        self.originalName = originalName
+        self.byteSize = byteSize
+        self.isImage = isImage
+        self.addedAt = addedAt
+        self.remoteURLStored = remoteURL
+        self.uploadStateStored = uploadState.rawValue
+    }
 }
 
 struct EvidenceLink: Identifiable, Codable, Hashable {
@@ -202,6 +245,14 @@ struct Evidence: Identifiable, Codable, Hashable {
     var links: [EvidenceLink] = []
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
+
+    /// Stored Optional so files written before sync existed still decode.
+    private var syncStored: SyncMetadata?
+
+    var sync: SyncMetadata {
+        get { syncStored ?? SyncMetadata() }
+        set { syncStored = newValue }
+    }
 
     var displayTitle: String { title.popIsBlank ? "Untitled evidence" : title }
 
@@ -455,6 +506,15 @@ struct Decision: Identifiable, Codable, Hashable {
 
     var createdAt: Date = Date()
     var updatedAt: Date = Date()
+
+    /// Stored Optional so files written before sync existed still decode.
+    private var syncStored: SyncMetadata?
+
+    /// Server bookkeeping. `.localOnly` until a backend pushes it.
+    var sync: SyncMetadata {
+        get { syncStored ?? SyncMetadata() }
+        set { syncStored = newValue }
+    }
 
     // MARK: Derived
 

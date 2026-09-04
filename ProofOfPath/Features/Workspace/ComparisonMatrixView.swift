@@ -57,6 +57,8 @@ struct ComparisonMatrixView: View {
             } else {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
+                        CoinStrikeFeatureBanner(asset: "CoinStrikeCompare")
+                            .padding(.horizontal, POPMetrics.gutter)
                         if !decision.isWeightBalanced {
                             POPBanner(
                                 kind: .warning,

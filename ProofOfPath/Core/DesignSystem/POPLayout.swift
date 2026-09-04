@@ -47,6 +47,37 @@ struct POPScreenHeader: View {
     }
 }
 
+// MARK: - Coin Strike feature artwork
+
+/// Decorative, non-interactive scene art used to give deep workspace views a
+/// consistent Coin Strike visual identity without affecting their data flow.
+struct CoinStrikeFeatureBanner: View {
+    let asset: String
+    var height: CGFloat = 104
+
+    var body: some View {
+        Image(asset)
+            .resizable()
+            .scaledToFill()
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .clipped()
+            .overlay(
+                LinearGradient(
+                    colors: [Color.clear, Color(hex: 0x061631).opacity(0.42)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: POPMetrics.cardRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: POPMetrics.cardRadius, style: .continuous)
+                    .strokeBorder(POPColor.brandYellow.opacity(0.48), lineWidth: 1)
+            )
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Section header
 
 struct POPSectionHeader: View {

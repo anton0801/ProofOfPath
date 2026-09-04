@@ -8,13 +8,54 @@
 import Foundation
 
 /// Everything that gets written to disk.
+///
+/// The sync containers below are stored as Optionals with non-optional
+/// accessors. Swift's synthesized decoder does not fall back to a property's
+/// default when a key is missing, so making them non-optional would break every
+/// file written by an earlier build.
 struct AppData: Codable, Hashable {
     var decisions: [Decision] = []
     var evidence: [Evidence] = []
     var settings: AppSettings = AppSettings()
-    var schemaVersion: Int = 1
+    var schemaVersion: Int = AppData.currentSchemaVersion
 
-    static let currentSchemaVersion = 1
+    // MARK: Sync containers (inert while the app is local-only)
+
+    private var tombstonesStored: [Tombstone]?
+    private var outboxStored: [PendingMutation]?
+    private var accountStored: AccountState?
+
+    /// Deletions that still have to be reported to a server.
+    var tombstones: [Tombstone] {
+        get { tombstonesStored ?? [] }
+        set { tombstonesStored = newValue }
+    }
+
+    /// Local changes queued for upload.
+    var outbox: [PendingMutation] {
+        get { outboxStored ?? [] }
+        set { outboxStored = newValue }
+    }
+
+    /// Identity and sync status. Anonymous and local until a server exists.
+    var account: AccountState {
+        get { accountStored ?? AccountState() }
+        set { accountStored = newValue }
+    }
+
+    /// True once an account record has actually been written. The accessor above
+    /// synthesises a fresh `AccountState` on every read, which would hand out a
+    /// different `deviceID` each time, so the record is materialised once at
+    /// launch instead.
+    var hasAccountRecord: Bool { accountStored != nil }
+
+    mutating func ensureAccountRecord() {
+        if accountStored == nil { accountStored = AccountState() }
+    }
+
+    /// Bumped to 2 when the sync containers were introduced. Version 1 files
+    /// still decode: every new key is optional.
+    static let currentSchemaVersion = 2
 }
 
 /// Transient, non-persisted UI feedback.
@@ -38,6 +79,9 @@ struct AppState: Equatable {
     var decisions: [Decision] = []
     var evidence: [Evidence] = []
     var settings: AppSettings = AppSettings()
+    var tombstones: [Tombstone] = []
+    var outbox: [PendingMutation] = []
+    var account: AccountState = AccountState()
 
     // Runtime only
     var isLoaded: Bool = false
@@ -134,6 +178,19 @@ struct AppState: Equatable {
     var hasAnyDecision: Bool { !decisions.isEmpty }
 
     var data: AppData {
-        AppData(decisions: decisions, evidence: evidence, settings: settings, schemaVersion: AppData.currentSchemaVersion)
+        var payload = AppData()
+        payload.decisions = decisions
+        payload.evidence = evidence
+        payload.settings = settings
+        payload.schemaVersion = AppData.currentSchemaVersion
+        payload.tombstones = tombstones
+        payload.outbox = outbox
+        payload.account = account
+        return payload
+    }
+
+    /// Records still waiting to reach a server. Zero while local-only.
+    var pendingSyncCount: Int {
+        outbox.count + tombstones.filter { !$0.acknowledged }.count
     }
 }

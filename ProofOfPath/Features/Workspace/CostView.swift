@@ -35,6 +35,7 @@ struct CostView: View {
 
         return ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
+                CoinStrikeFeatureBanner(asset: "CoinStrikeCost")
                 horizonCard(decision)
 
                 if breakdowns.isEmpty {
