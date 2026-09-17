@@ -2,7 +2,7 @@
 //  DataRepository.swift
 //  ProofOfPath
 //
-//  Local JSON storage. No account, no network.
+//  The offline cache of server data, plus backup files.
 //
 
 import Foundation
@@ -27,115 +27,115 @@ enum RepositoryError: LocalizedError {
     }
 }
 
+/// What the cache file holds: the last data the server confirmed, and whose.
+struct CachedAccountData: Codable {
+    var userID: String
+    var savedAt: Date
+    var data: AppData
+}
+
+/// The server is the source of truth. This keeps a copy of what it last
+/// confirmed so the app opens instantly and stays readable offline.
+///
+/// The cache is tied to the account that wrote it: data cached for one account
+/// is never shown to another (after "Delete All Data", for example).
 final class DataRepository {
 
     static let shared = DataRepository()
 
-    private let fileName = "proofpath-data.json"
-    private let queue = DispatchQueue(label: "com.proofofpath.persistence", qos: .utility)
+    private let fileName = "proofpath-cache.json"
+    private let queue = DispatchQueue(label: "com.proofofpath.cache", qos: .utility)
 
-    private var documentsURL: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    private let directoryOverride: URL?
+
+    /// - Parameter directory: where the cache lives. Nil means Application
+    ///   Support; tests pass a temporary directory.
+    init(directory: URL? = nil) {
+        self.directoryOverride = directory
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
 
-    var storeURL: URL { documentsURL.appendingPathComponent(fileName) }
-
-    /// Plain `.iso8601` truncates to whole seconds, which lets two events logged
-    /// in the same second swap places after a reload. Fractional seconds keep the
-    /// chronology exactly as it was recorded.
-    private static let preciseFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    private static let fallbackFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
-
-    private lazy var encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-            var container = encoder.singleValueContainer()
-            try container.encode(Self.preciseFormatter.string(from: date))
-        }
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return encoder
-    }()
-
-    private lazy var decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let text = try container.decode(String.self)
-            // Accept both shapes so a file written by any build still opens.
-            if let date = Self.preciseFormatter.date(from: text) { return date }
-            if let date = Self.fallbackFormatter.date(from: text) { return date }
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "“\(text)” is not an ISO-8601 date."
-            )
-        }
-        return decoder
-    }()
-
-    // MARK: - Load
-
-    func load() -> AppData {
-        guard FileManager.default.fileExists(atPath: storeURL.path) else { return AppData() }
-        do {
-            let data = try Data(contentsOf: storeURL)
-            guard !data.isEmpty else { return AppData() }
-            return try decoder.decode(AppData.self, from: data)
-        } catch {
-            // Never destroy the user's file on a read failure — keep it for recovery.
-            let backupURL = documentsURL.appendingPathComponent("proofpath-data-unreadable.json")
-            try? FileManager.default.removeItem(at: backupURL)
-            try? FileManager.default.copyItem(at: storeURL, to: backupURL)
-            return AppData()
-        }
+    private var cacheDirectory: URL {
+        if let directoryOverride { return directoryOverride }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ProofPath", isDirectory: true)
     }
 
-    // MARK: - Save
+    var storeURL: URL { cacheDirectory.appendingPathComponent(fileName) }
+
+    private let encoder = POPJSON.makeEncoder()
+    private let decoder = POPJSON.makeDecoder()
+
+    // MARK: - Cache
+
+    /// The cached data, if it belongs to `userID`.
+    func load(for userID: String) -> AppData? {
+        guard let raw = try? Data(contentsOf: storeURL), !raw.isEmpty,
+              let cached = try? decoder.decode(CachedAccountData.self, from: raw),
+              cached.userID == userID
+        else { return nil }
+        return cached.data
+    }
 
     /// Debounced, atomic write on a background queue.
     private var pendingWorkItem: DispatchWorkItem?
 
-    func save(_ data: AppData) {
+    func save(_ data: AppData, for userID: String) {
         pendingWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.writeNow(data)
+            self?.writeNow(data, userID: userID)
         }
         pendingWorkItem = work
         queue.asyncAfter(deadline: .now() + 0.35, execute: work)
     }
 
     /// Forces an immediate write — used when the app is backgrounding.
-    ///
-    /// Synchronous on purpose. The store is written with complete file
-    /// protection, so it becomes unwritable the moment the device locks;
-    /// finishing before the scene is suspended is what keeps the last edit.
-    func flush(_ data: AppData) {
+    func flush(_ data: AppData, for userID: String) {
         pendingWorkItem?.cancel()
         pendingWorkItem = nil
         queue.sync { [weak self] in
-            self?.writeNow(data)
+            self?.writeNow(data, userID: userID)
         }
     }
 
-    private func writeNow(_ data: AppData) {
+    private func writeNow(_ data: AppData, userID: String) {
         do {
-            let encoded = try encoder.encode(data)
-            // The store holds receipts, contacts and prices, so it is written
-            // with complete protection: unreadable while the device is locked.
+            let encoded = try encoder.encode(CachedAccountData(userID: userID, savedAt: Date(), data: data))
+            // Receipts, contacts and prices: unreadable while the device is locked.
             try encoded.write(to: storeURL, options: [.atomic, .completeFileProtection])
+            var url = storeURL
+            var values = URLResourceValues()
+            // The server holds the real copy; the cache does not belong in iCloud backups.
+            values.isExcludedFromBackup = true
+            try? url.setResourceValues(values)
         } catch {
             #if DEBUG
-            print("[ProofPath] Save failed: \(error.localizedDescription)")
+            print("[ProofPath] Cache write failed: \(error.localizedDescription)")
             #endif
+        }
+    }
+
+    func deleteStore() {
+        pendingWorkItem?.cancel()
+        pendingWorkItem = nil
+        queue.sync {
+            try? FileManager.default.removeItem(at: storeURL)
+        }
+    }
+
+    // MARK: - Version 1.0 data
+
+    /// Version 1.0 kept everything in Documents. That data is not migrated to
+    /// the server; it is left untouched until the user deletes their data.
+    var legacyStoreURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("proofpath-data.json")
+    }
+
+    func removeLegacyData() {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        for name in ["proofpath-data.json", "proofpath-data-unreadable.json"] {
+            try? FileManager.default.removeItem(at: documents.appendingPathComponent(name))
         }
     }
 
@@ -143,7 +143,7 @@ final class DataRepository {
 
     func exportData(_ data: AppData) throws -> URL {
         do {
-            let encoded = try encoder.encode(data)
+            let encoded = try POPJSON.makeEncoder(pretty: true).encode(data)
             // Exports are shared out of the app, so clear any previous copy first
             // rather than leaving a full data dump sitting in the temp folder.
             purgeTemporaryExports()
@@ -198,12 +198,6 @@ final class DataRepository {
         for name in contents where name.hasPrefix("ProofPath-Backup-") || name.hasPrefix("ProofPath-Summary-") {
             try? FileManager.default.removeItem(at: tmp.appendingPathComponent(name))
         }
-    }
-
-    func deleteStore() {
-        pendingWorkItem?.cancel()
-        pendingWorkItem = nil
-        try? FileManager.default.removeItem(at: storeURL)
     }
 
     private static func exportStamp() -> String {

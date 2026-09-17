@@ -7,8 +7,12 @@ import SwiftUI
 import PhotosUI
 
 struct OptionEditorSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    /// Fixed for the life of the sheet, so saving again after a lost response
+    /// updates the same record instead of creating a second one.
+    @State private var newRecordID = UUID()
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let existing: DecisionOption?
@@ -155,19 +159,17 @@ struct OptionEditorSheet: View {
             .navigationTitle(existing == nil ? "Add Option" : "Edit Option")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save Option") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(title: "Save Option", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
                 }
             }
         }
         .onAppear(perform: hydrate)
-        .onChange(of: photoItem) { _, newItem in
+        .popOnChange(of: photoItem) { newItem in
             guard let newItem else { return }
             loadPhoto(newItem)
         }
@@ -184,7 +186,7 @@ struct OptionEditorSheet: View {
     }
 
     private func previewOption(cost: Double) -> DecisionOption {
-        var option = existing ?? DecisionOption()
+        var option = existing ?? DecisionOption(id: newRecordID)
         option.estimatedCost = cost
         return option
     }
@@ -193,7 +195,7 @@ struct OptionEditorSheet: View {
 
     private var imageSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            POPFieldShell(label: "Image", hint: "Optional. Stored on this device only.") {
+            POPFieldShell(label: "Image", hint: "Optional. Uploaded to your ProofPath account when you save.") {
                 HStack(spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -289,7 +291,7 @@ struct OptionEditorSheet: View {
             Haptics.error()
             return
         }
-        var option = existing ?? DecisionOption()
+        var option = existing ?? DecisionOption(id: newRecordID)
         option.name = name.popTrimmed
         option.providerOrBrand = provider.popTrimmed
         option.estimatedCost = cost
@@ -302,11 +304,9 @@ struct OptionEditorSheet: View {
         option.status = status
         option.imageFileName = imageFileName
 
-        if existing == nil {
-            store.send(.addOption(decisionID: decisionID, option: option))
-        } else {
-            store.send(.updateOption(decisionID: decisionID, option: option))
-        }
-        dismiss()
+        let intent: AppIntent = existing == nil
+            ? .addOption(decisionID: decisionID, option: option)
+            : .updateOption(decisionID: decisionID, option: option)
+        submission.run(store, intent) { dismiss() }
     }
 }

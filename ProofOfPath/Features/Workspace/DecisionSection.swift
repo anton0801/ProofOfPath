@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct DecisionSection: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
 
     private var decision: Decision? { store.state.decision(id: decisionID) }

@@ -54,7 +54,7 @@ enum DecisionSort: String, CaseIterable, Identifiable, Hashable {
 }
 
 struct DecisionsListView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
 
     @State private var search = ""
     @State private var filter: DecisionFilter = .all
@@ -158,7 +158,7 @@ struct DecisionsListView: View {
         .background(POPColor.canvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Picker("Sort by", selection: $sort) {
                         ForEach(DecisionSort.allCases) { option in
@@ -176,7 +176,7 @@ struct DecisionsListView: View {
                 }
                 .accessibilityLabel(Text("Sort and archive"))
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     Haptics.tap()
                     showCreate = true
@@ -196,7 +196,7 @@ struct DecisionsListView: View {
         }) {
             CreateDecisionFlow(onCreated: { createdDecisionID = $0 })
         }
-        .navigationDestination(item: $route) { destination in
+        .popNavigationDestination(item: $route) { destination in
             if case .decisionSection(let id, let section) = destination {
                 DecisionWorkspaceView(decisionID: id, initialSection: section)
             }
@@ -216,7 +216,7 @@ struct DecisionsListView: View {
                 }
                 .padding(.horizontal, 1)
             }
-            .scrollClipDisabled()
+            .popScrollClipDisabled()
 
             if usedCategories.count > 1 {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -236,7 +236,7 @@ struct DecisionsListView: View {
                     }
                     .padding(.horizontal, 1)
                 }
-                .scrollClipDisabled()
+                .popScrollClipDisabled()
             }
         }
     }
@@ -268,7 +268,7 @@ struct DecisionsListView: View {
 // MARK: - Archived
 
 struct ArchivedDecisionsView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @State private var pendingDelete: Decision?
     @State private var route: AppRoute?
 
@@ -299,6 +299,7 @@ struct ArchivedDecisionsView: View {
                                 POPPillButton(title: "Delete", icon: "trash", tint: POPColor.danger) {
                                     pendingDelete = decision
                                 }
+                                .popRequiresConnection()
                                 Spacer()
                             }
                         }
@@ -311,7 +312,7 @@ struct ArchivedDecisionsView: View {
         .background(POPColor.canvas.ignoresSafeArea())
         .navigationTitle("Archived Decisions")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $route) { destination in
+        .popNavigationDestination(item: $route) { destination in
             if case .decision(let id) = destination {
                 DecisionWorkspaceView(decisionID: id, initialSection: .brief)
             }

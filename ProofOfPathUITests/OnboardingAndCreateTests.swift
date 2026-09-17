@@ -118,7 +118,7 @@ final class OnboardingAndCreateTests: XCTestCase {
         // Relaunch WITHOUT resetting — the decision must still be there.
         app.terminate()
         let relaunched = XCUIApplication()
-        relaunched.launchArguments = []
+        relaunched.launchArguments = ["-POPAPIBaseURL", XCUIApplication.testAPI]
         relaunched.launch()
         waitFor(relaunched.staticTexts["Replace the fridge"], 15)
     }

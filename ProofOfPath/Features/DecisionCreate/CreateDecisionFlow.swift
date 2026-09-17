@@ -10,33 +10,34 @@ import SwiftUI
 
 // MARK: - Wizard state
 
-@Observable
-final class CreateDecisionModel {
-    var step: Int = 0
+final class CreateDecisionModel: ObservableObject {
+    /// Chosen once, so submitting again after a lost response cannot create a twin.
+    let decisionID = UUID()
+    @Published var step: Int = 0
 
     // Step 1
-    var templateID: String?
-    var category: DecisionCategory = .purchase
-    var customCategoryName: String = ""
-    var title: String = ""
+    @Published var templateID: String?
+    @Published var category: DecisionCategory = .purchase
+    @Published var customCategoryName: String = ""
+    @Published var title: String = ""
 
     // Step 2
-    var desiredOutcome: String = ""
-    var whyItMatters: String = ""
-    var peopleAffected: String = ""
+    @Published var desiredOutcome: String = ""
+    @Published var whyItMatters: String = ""
+    @Published var peopleAffected: String = ""
 
     // Step 3
-    var budgetMinText: String = ""
-    var budgetMaxText: String = ""
-    var currencyCode: String = "USD"
-    var deadline: Date?
-    var preferredCompletionDate: Date?
-    var hardConstraints: [HardConstraint] = []
-    var acknowledgedOverdue: Bool = false
+    @Published var budgetMinText: String = ""
+    @Published var budgetMaxText: String = ""
+    @Published var currencyCode: String = "USD"
+    @Published var deadline: Date?
+    @Published var preferredCompletionDate: Date?
+    @Published var hardConstraints: [HardConstraint] = []
+    @Published var acknowledgedOverdue: Bool = false
 
     // Step 4
-    var reviewedTemplateCriteria: [TemplateCriterion] = []
-    var showValidation: Bool = false
+    @Published var reviewedTemplateCriteria: [TemplateCriterion] = []
+    @Published var showValidation: Bool = false
 
     let totalSteps = 4
 
@@ -105,6 +106,7 @@ final class CreateDecisionModel {
 
     func makeDraft(saveAsDraft: Bool, defaultCurrency: String, ownerName: String) -> DecisionDraft {
         var draft = DecisionDraft()
+        draft.id = decisionID
         draft.title = title
         draft.category = category
         draft.customCategoryName = customCategoryName
@@ -128,14 +130,14 @@ final class CreateDecisionModel {
 // MARK: - Flow
 
 struct CreateDecisionFlow: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     var preselectedTemplateID: String?
     var onFinished: (() -> Void)?
     var onCreated: ((UUID) -> Void)?
 
-    @State private var model = CreateDecisionModel()
+    @StateObject private var model = CreateDecisionModel()
     @State private var showDiscardAlert = false
     @State private var isSubmitting = false
 
@@ -167,7 +169,7 @@ struct CreateDecisionFlow: View {
             .navigationTitle("Create Decision")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         if hasAnyInput { showDiscardAlert = true } else { dismiss() }
                     }
@@ -208,7 +210,7 @@ struct CreateDecisionFlow: View {
     private var footer: some View {
         VStack(spacing: 8) {
             if model.step == model.totalSteps - 1 {
-                POPPrimaryButton(title: "Create Workspace", icon: "checkmark", isEnabled: model.canSubmit, isLoading: isSubmitting) {
+                POPPrimaryButton(title: "Create Workspace", icon: "checkmark", isEnabled: model.canSubmit && store.canEdit, isLoading: isSubmitting) {
                     submit(asDraft: false)
                 }
                 .accessibilityIdentifier("wizard.createWorkspace")
@@ -216,7 +218,7 @@ struct CreateDecisionFlow: View {
                     POPSecondaryButton(title: "Back", icon: "chevron.left") {
                         withAnimation(.easeInOut(duration: 0.2)) { model.step -= 1 }
                     }
-                    POPSecondaryButton(title: "Save as Draft", icon: "tray.and.arrow.down", isEnabled: model.canSubmit) {
+                    POPSecondaryButton(title: "Save as Draft", icon: "tray.and.arrow.down", isEnabled: model.canSubmit && store.canEdit && !isSubmitting) {
                         submit(asDraft: true)
                     }
                     .accessibilityIdentifier("wizard.saveDraft")
@@ -264,12 +266,17 @@ struct CreateDecisionFlow: View {
             defaultCurrency: store.state.settings.defaultCurrency,
             ownerName: store.state.settings.ownerName
         )
-        store.send(.createDecision(draft))
-        let createdID = store.state.decisions.last?.id
-        Haptics.success()
-        onFinished?()
-        if let createdID { onCreated?(createdID) }
-        dismiss()
+        Task {
+            let created = await store.perform(.createDecision(draft))
+            isSubmitting = false
+            // Nothing was stored: keep the wizard open with everything entered.
+            guard created else { return }
+            let createdID = store.state.decisions.last?.id
+            Haptics.success()
+            onFinished?()
+            if let createdID { onCreated?(createdID) }
+            dismiss()
+        }
     }
 }
 
@@ -313,7 +320,7 @@ private extension Array where Element == String {
 // MARK: - Step 1
 
 struct StepDecisionType: View {
-    @Bindable var model: CreateDecisionModel
+    @ObservedObject var model: CreateDecisionModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
@@ -434,7 +441,7 @@ struct TemplateChoiceRow: View {
 // MARK: - Step 2
 
 struct StepDesiredOutcome: View {
-    @Bindable var model: CreateDecisionModel
+    @ObservedObject var model: CreateDecisionModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
@@ -482,7 +489,7 @@ struct StepDesiredOutcome: View {
 // MARK: - Step 3
 
 struct StepLimits: View {
-    @Bindable var model: CreateDecisionModel
+    @ObservedObject var model: CreateDecisionModel
     @State private var showConstraintSheet = false
 
     var body: some View {
@@ -592,6 +599,7 @@ struct StepLimits: View {
                 existing: nil
             ) { constraint in
                 model.hardConstraints.append(constraint)
+                return true
             }
         }
     }
@@ -667,7 +675,7 @@ struct ConstraintSummaryRow: View {
 // MARK: - Step 4
 
 struct StepReview: View {
-    @Bindable var model: CreateDecisionModel
+    @ObservedObject var model: CreateDecisionModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {

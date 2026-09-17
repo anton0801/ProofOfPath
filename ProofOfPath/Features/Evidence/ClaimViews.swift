@@ -10,8 +10,12 @@ import SwiftUI
 // MARK: - Editor
 
 struct ClaimEditorSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    /// Fixed for the life of the sheet, so saving again after a lost response
+    /// updates the same record instead of creating a second one.
+    @State private var newRecordID = UUID()
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let existing: Claim?
@@ -150,14 +154,12 @@ struct ClaimEditorSheet: View {
             .navigationTitle(existing == nil ? "Add Claim" : "Edit Claim")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(title: "Save", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
                 }
             }
         }
@@ -187,7 +189,7 @@ struct ClaimEditorSheet: View {
             Haptics.error()
             return
         }
-        var claim = existing ?? Claim()
+        var claim = existing ?? Claim(id: newRecordID)
         claim.text = text.popTrimmed
         claim.claimedBy = claimedBy.popTrimmed
         claim.optionID = optionID
@@ -197,20 +199,19 @@ struct ClaimEditorSheet: View {
         claim.missingProof = missingProof.popTrimmed
         if existing != nil { claim.status = status }
 
-        if existing == nil {
-            store.send(.addClaim(decisionID: decisionID, claim: claim))
-        } else {
-            store.send(.updateClaim(decisionID: decisionID, claim: claim))
-        }
-        dismiss()
+        let intent: AppIntent = existing == nil
+            ? .addClaim(decisionID: decisionID, claim: claim)
+            : .updateClaim(decisionID: decisionID, claim: claim)
+        submission.run(store, intent) { dismiss() }
     }
 }
 
 // MARK: - Detail
 
 struct ClaimDetailSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let claimID: UUID
@@ -290,11 +291,11 @@ struct ClaimDetailSheet: View {
         .navigationTitle("Claim Check")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Button("Close") { dismiss() }
                     .foregroundStyle(POPColor.inkSecondary)
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button { showEditor = true } label: { Label("Edit Claim", systemImage: "pencil") }
                     Button(role: .destructive) { pendingDelete = true } label: {
@@ -324,8 +325,7 @@ struct ClaimDetailSheet: View {
         .alert("Delete this claim?", isPresented: $pendingDelete) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
-                store.send(.deleteClaim(decisionID: decisionID, claimID: claimID))
-                dismiss()
+                submission.run(store, .deleteClaim(decisionID: decisionID, claimID: claimID)) { dismiss() }
             }
         } message: {
             Text("The evidence itself stays in your inbox — only the claim record is removed.")
@@ -518,8 +518,9 @@ struct ClaimDetailSheet: View {
 // MARK: - Request verification
 
 struct RequestVerificationSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let claimID: UUID
@@ -542,9 +543,8 @@ struct RequestVerificationSheet: View {
                         date: $deadline,
                         hint: "Optional. Leave empty for a task without a due date."
                     )
-                    POPPrimaryButton(title: "Create Follow-Up") {
-                        store.send(.requestClaimVerification(decisionID: decisionID, claimID: claimID, deadline: deadline))
-                        dismiss()
+                    POPPrimaryButton(title: "Create Follow-Up", isEnabled: store.canEdit, isLoading: submission.isRunning) {
+                        submission.run(store, .requestClaimVerification(decisionID: decisionID, claimID: claimID, deadline: deadline)) { dismiss() }
                     }
                     Color.clear.frame(height: 8)
                 }
@@ -555,7 +555,7 @@ struct RequestVerificationSheet: View {
             .navigationTitle("Request Verification")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
@@ -572,7 +572,7 @@ struct RequestVerificationSheet: View {
 // MARK: - Claim evidence picker
 
 struct ClaimEvidencePicker: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -681,6 +681,7 @@ struct ClaimEvidencePicker: View {
                         POPSecondaryButton(title: "Add New Evidence", icon: "plus") {
                             showNewEvidence = true
                         }
+                        .popRequiresConnection()
                     }
 
                     Color.clear.frame(height: 8)
@@ -692,7 +693,7 @@ struct ClaimEvidencePicker: View {
             .navigationTitle(supporting ? "Supporting Evidence" : "Contradicting Evidence")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(POPFont.bodyMedium)
                         .foregroundStyle(POPColor.brandOrange)

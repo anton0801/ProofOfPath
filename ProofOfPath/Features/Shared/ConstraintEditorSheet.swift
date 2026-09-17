@@ -68,12 +68,17 @@ struct CriterionOption: Identifiable, Hashable {
 
 struct ConstraintEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
+    /// Fixed for the life of the sheet, so saving again after a lost response
+    /// updates the same record instead of creating a second one.
+    @State private var newRecordID = UUID()
 
     let currencyCode: String
     let criteria: [Criterion]
     let existing: HardConstraint?
-    let onSave: (HardConstraint) -> Void
+    /// Returns false when the constraint could not be saved; the sheet stays open.
+    let onSave: (HardConstraint) async -> Bool
 
+    @State private var isSaving = false
     @State private var title = ""
     @State private var details = ""
     @State private var kind: ConstraintCheckKind = .maximumCost
@@ -232,14 +237,12 @@ struct ConstraintEditorSheet: View {
             .navigationTitle(existing == nil ? "Add Constraint" : "Edit Constraint")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(isSaving: isSaving, isHighlighted: isValid) { save() }
                 }
             }
         }
@@ -306,13 +309,20 @@ struct ConstraintEditorSheet: View {
         case .manual: check = .manual
         }
 
-        var constraint = existing ?? HardConstraint()
+        var constraint = existing ?? HardConstraint(id: newRecordID)
         constraint.title = title.popTrimmed
         constraint.details = details.popTrimmed
         constraint.check = check
-        onSave(constraint)
-        Haptics.success()
-        dismiss()
+        guard !isSaving else { return }
+        isSaving = true
+        Task {
+            let saved = await onSave(constraint)
+            isSaving = false
+            if saved {
+                Haptics.success()
+                dismiss()
+            }
+        }
     }
 }
 

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct HomeView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @State private var showCreate = false
     @State private var selectedBucket: HomeBucket = .active
     @State private var route: AppRoute?
@@ -44,12 +44,12 @@ struct HomeView: View {
         .background(POPColor.canvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Text("ProofPath")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(POPColor.ink)
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink(value: AppRoute.settings) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 15, weight: .semibold))
@@ -69,7 +69,7 @@ struct HomeView: View {
         }) {
             CreateDecisionFlow(onCreated: { createdDecisionID = $0 })
         }
-        .navigationDestination(item: $route) { destination in
+        .popNavigationDestination(item: $route) { destination in
             destinationView(destination)
         }
     }
@@ -101,6 +101,7 @@ struct HomeView: View {
                 POPPrimaryButton(title: "Create Decision", icon: "plus") {
                     showCreate = true
                 }
+                .popRequiresConnection()
                 .accessibilityIdentifier("home.createDecision")
             }
         }
@@ -138,6 +139,7 @@ struct HomeView: View {
                 POPPrimaryButton(title: "Create Your First Decision", icon: "plus") {
                     showCreate = true
                 }
+                .popRequiresConnection()
                 .accessibilityIdentifier("home.createFirstDecision")
                 NavigationLink(value: AppRoute.templates) {
                     HStack(spacing: 6) {
@@ -170,7 +172,7 @@ struct HomeView: View {
             }
             .padding(.horizontal, 1)
         }
-        .scrollClipDisabled()
+        .popScrollClipDisabled()
     }
 
     // MARK: Decision list

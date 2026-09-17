@@ -7,8 +7,9 @@ import SwiftUI
 import QuickLook
 
 struct EvidenceDetailView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
     @Environment(\.openURL) private var openURL
 
     let evidenceID: UUID
@@ -58,7 +59,7 @@ struct EvidenceDetailView: View {
         .navigationTitle("Evidence Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     Haptics.tap()
                     showEditor = true
@@ -82,8 +83,7 @@ struct EvidenceDetailView: View {
         .alert("Delete this evidence?", isPresented: $pendingDelete) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
-                store.send(.deleteEvidence(evidenceID))
-                dismiss()
+                submission.run(store, .deleteEvidence(evidenceID)) { dismiss() }
             }
         } message: {
             Text(deleteMessage(evidence))
@@ -177,6 +177,7 @@ struct EvidenceDetailView: View {
 
             if let attachment = evidence.attachment {
                 let fileExists = store.attachmentExists(attachment.fileName)
+                let isDownloading = !fileExists && store.isDownloadingAttachment(attachment.fileName)
 
                 if attachment.isImage, let image = store.image(named: attachment.fileName) {
                     Image(uiImage: image)
@@ -201,7 +202,7 @@ struct EvidenceDetailView: View {
                             .font(POPFont.calloutMedium)
                             .foregroundStyle(POPColor.ink)
                             .lineLimit(1)
-                        Text(fileExists ? POPFormat.fileSize(attachment.byteSize) : "File missing from storage")
+                        Text(fileExists ? POPFormat.fileSize(attachment.byteSize) : isDownloading ? "Downloading…" : "File not available")
                             .font(POPFont.caption)
                             .foregroundStyle(fileExists ? POPColor.inkSecondary : POPColor.danger)
                     }
@@ -215,12 +216,15 @@ struct EvidenceDetailView: View {
                     POPPillButton(title: "Replace", icon: "arrow.triangle.2.circlepath") {
                         showEditor = true
                     }
+                    .popRequiresConnection()
                     Spacer(minLength: 0)
                 }
 
-                if !fileExists {
+                if !fileExists && !isDownloading {
                     POPInlineNote(
-                        text: "The file is no longer on this device. Replace it or remove the attachment.",
+                        text: store.connection == .online
+                            ? "The file could not be loaded from your account. Replace it or remove the attachment."
+                            : "The file has not been downloaded to this device yet. Connect to the internet to view it.",
                         icon: "exclamationmark.triangle.fill",
                         tint: POPColor.danger
                     )
@@ -441,14 +445,16 @@ struct EvidenceDetailView: View {
         POPDestructiveButton(title: "Delete Evidence") {
             pendingDelete = true
         }
+        .popRequiresConnection()
     }
 }
 
 // MARK: - Links editor
 
 struct EvidenceLinksEditor: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let evidenceID: UUID
     let decisionID: UUID
@@ -569,14 +575,16 @@ struct EvidenceLinksEditor: View {
                                         tintFor: { $0.color }
                                     )
                                 }
-                                POPPrimaryButton(title: "Add Link", icon: "link", isEnabled: canAdd) {
+                                POPPrimaryButton(title: "Add Link", icon: "link", isEnabled: canAdd && store.canEdit,
+                                                 isLoading: submission.isRunning) {
                                     var link = EvidenceLink()
                                     link.optionID = newOptionID
                                     link.criterionID = newCriterionID
                                     link.relation = newRelation
-                                    store.send(.addEvidenceLink(evidenceID: evidenceID, link: link))
-                                    newOptionID = nil
-                                    newCriterionID = nil
+                                    submission.run(store, .addEvidenceLink(evidenceID: evidenceID, link: link)) {
+                                        newOptionID = nil
+                                        newCriterionID = nil
+                                    }
                                 }
                             }
                         }
@@ -592,7 +600,7 @@ struct EvidenceLinksEditor: View {
             .navigationTitle("Manage Links")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(POPFont.bodyMedium)
                         .foregroundStyle(POPColor.brandOrange)

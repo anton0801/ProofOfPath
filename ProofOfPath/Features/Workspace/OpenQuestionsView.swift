@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct OpenQuestionsView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -73,6 +73,7 @@ struct OpenQuestionsView: View {
                     followUpPrefill = nil
                     showFollowUpSheet = true
                 }
+                .popRequiresConnection()
 
                 Color.clear.frame(height: 16)
             }
@@ -88,7 +89,7 @@ struct OpenQuestionsView: View {
         .sheet(isPresented: $showFollowUpSheet) {
             FollowUpEditorSheet(decisionID: decisionID, prefill: followUpPrefill)
         }
-        .navigationDestination(item: $route) { destination in
+        .popNavigationDestination(item: $route) { destination in
             switch destination {
             case .decisionSection(let id, let section):
                 DecisionWorkspaceView(decisionID: id, initialSection: section)
@@ -189,6 +190,7 @@ struct OpenQuestionsView: View {
                     POPPillButton(title: "Accept Unknown", icon: "hand.raised") {
                         acceptingQuestion = question
                     }
+                    .popRequiresConnection()
                 }
                 POPPillButton(title: "Follow-Up", icon: "flag") {
                     followUpPrefill = question
@@ -225,7 +227,7 @@ struct OpenQuestionsView: View {
                 HStack(alignment: .top, spacing: 10) {
                     Button(action: {
                         Haptics.selection()
-                        store.send(.toggleFollowUp(decisionID: decisionID, taskID: task.id))
+                        store.send(.setFollowUpDone(decisionID: decisionID, taskID: task.id, isDone: !task.isDone))
                     }) {
                         Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                             .font(.system(size: 18, weight: .semibold))
@@ -320,8 +322,9 @@ struct OpenQuestionsView: View {
 // MARK: - Accept unknown
 
 struct AcceptUnknownSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let question: OpenQuestion
@@ -361,13 +364,14 @@ struct AcceptUnknownSheet: View {
                         minHeight: 110
                     )
 
-                    POPPrimaryButton(title: "Mark as Accepted Unknown", icon: "hand.raised") {
+                    POPPrimaryButton(title: "Mark as Accepted Unknown", icon: "hand.raised",
+                                     isEnabled: store.canEdit, isLoading: submission.isRunning) {
                         guard !reason.popIsBlank else {
                             showValidation = true
                             Haptics.error()
                             return
                         }
-                        store.send(.acceptUnknown(
+                        submission.run(store, .acceptUnknown(
                             decisionID: decisionID,
                             question: AcceptedUnknownDraft(
                                 questionKey: question.key,
@@ -375,8 +379,7 @@ struct AcceptUnknownSheet: View {
                                 label: question.title,
                                 reason: reason
                             )
-                        ))
-                        dismiss()
+                        )) { dismiss() }
                     }
 
                     Color.clear.frame(height: 8)
@@ -388,7 +391,7 @@ struct AcceptUnknownSheet: View {
             .navigationTitle("Accept Unknown")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
@@ -400,8 +403,12 @@ struct AcceptUnknownSheet: View {
 // MARK: - Follow-up editor
 
 struct FollowUpEditorSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    /// Fixed for the life of the sheet, so saving again after a lost response
+    /// updates the same record instead of creating a second one.
+    @State private var newRecordID = UUID()
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     var prefill: OpenQuestion?
@@ -441,18 +448,17 @@ struct FollowUpEditorSheet: View {
                         date: $dueDate,
                         hint: "Optional. A reminder is scheduled if reminders are on."
                     )
-                    POPPrimaryButton(title: "Create Task", icon: "plus") {
+                    POPPrimaryButton(title: "Create Task", icon: "plus", isEnabled: store.canEdit, isLoading: submission.isRunning) {
                         guard !title.popIsBlank else {
                             showValidation = true
                             Haptics.error()
                             return
                         }
-                        var task = FollowUpTask(title: title.popTrimmed)
+                        var task = FollowUpTask(id: newRecordID, title: title.popTrimmed)
                         task.notes = notes.popTrimmed
                         task.dueDate = dueDate
                         task.relatedQuestionKey = prefill?.key
-                        store.send(.addFollowUp(decisionID: decisionID, task: task))
-                        dismiss()
+                        submission.run(store, .addFollowUp(decisionID: decisionID, task: task)) { dismiss() }
                     }
                     Color.clear.frame(height: 8)
                 }
@@ -463,7 +469,7 @@ struct FollowUpEditorSheet: View {
             .navigationTitle("Follow-Up Task")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }

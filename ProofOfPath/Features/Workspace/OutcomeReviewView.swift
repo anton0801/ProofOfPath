@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct OutcomeReviewView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
 
@@ -434,13 +435,15 @@ struct OutcomeReviewView: View {
             POPPrimaryButton(
                 title: isComplete ? "Update Review" : "Complete Outcome Review",
                 icon: "checkmark.circle",
-                isEnabled: canComplete
+                isEnabled: canComplete && store.canEdit,
+                isLoading: submission.isRunning
             ) {
                 complete()
             }
             POPSecondaryButton(title: "Save Draft Review", icon: "tray.and.arrow.down") {
                 saveDraft()
             }
+            .popRequiresConnection()
             POPSecondaryButton(title: "Update Later", icon: "clock", tint: POPColor.inkSecondary) {
                 dismiss()
             }
@@ -497,7 +500,6 @@ struct OutcomeReviewView: View {
             Haptics.error()
             return
         }
-        store.send(.completeOutcomeReview(decisionID: decisionID, review: buildReview()))
-        dismiss()
+        submission.run(store, .completeOutcomeReview(decisionID: decisionID, review: buildReview())) { dismiss() }
     }
 }

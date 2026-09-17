@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct RisksSection: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
 
     @State private var showEditor = false
@@ -72,6 +72,7 @@ struct RisksSection: View {
                         editingRisk = nil
                         showEditor = true
                     }
+                    .popRequiresConnection()
                 }
             }
             .sheet(isPresented: $showEditor, onDismiss: { editingRisk = nil }) {
@@ -109,14 +110,14 @@ struct RisksSection: View {
             }
             .padding(.horizontal, 1)
         }
-        .scrollClipDisabled()
+        .popScrollClipDisabled()
     }
 }
 
 // MARK: - Risk row
 
 struct RiskRow: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let risk: Risk
     let decision: Decision
     let onTap: () -> Void
@@ -215,7 +216,7 @@ struct RiskRow: View {
                               tint: POPColor.success, filled: risk.state == .reduced) {
                     store.send(.setRiskState(decisionID: decision.id, riskID: risk.id, state: .reduced, reason: ""))
                 }
-                POPPillButton(title: "Occurred", icon: "bolt.trianglebadge.exclamationmark",
+                POPPillButton(title: "Occurred", icon: POPSymbol.riskOccurred,
                               tint: POPColor.danger, filled: risk.state == .occurred) {
                     store.send(.setRiskState(decisionID: decision.id, riskID: risk.id, state: .occurred, reason: ""))
                 }
@@ -255,8 +256,9 @@ struct RiskRow: View {
 // MARK: - Accept risk sheet
 
 struct AcceptRiskSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let riskID: UUID
@@ -295,14 +297,14 @@ struct AcceptRiskSheet: View {
                         minHeight: 110
                     )
 
-                    POPPrimaryButton(title: "Accept Without Mitigation", icon: "hand.raised") {
+                    POPPrimaryButton(title: "Accept Without Mitigation", icon: "hand.raised",
+                                     isEnabled: store.canEdit, isLoading: submission.isRunning) {
                         guard !reason.popIsBlank else {
                             showValidation = true
                             Haptics.error()
                             return
                         }
-                        store.send(.setRiskState(decisionID: decisionID, riskID: riskID, state: .accepted, reason: reason))
-                        dismiss()
+                        submission.run(store, .setRiskState(decisionID: decisionID, riskID: riskID, state: .accepted, reason: reason)) { dismiss() }
                     }
 
                     Color.clear.frame(height: 8)
@@ -314,7 +316,7 @@ struct AcceptRiskSheet: View {
             .navigationTitle("Accept Risk")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
@@ -326,8 +328,12 @@ struct AcceptRiskSheet: View {
 // MARK: - Risk editor
 
 struct RiskEditorSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    /// Fixed for the life of the sheet, so saving again after a lost response
+    /// updates the same record instead of creating a second one.
+    @State private var newRecordID = UUID()
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let existing: Risk?
@@ -417,7 +423,7 @@ struct RiskEditorSheet: View {
                     }
 
                     VStack(alignment: .leading, spacing: 12) {
-                        POPSectionHeader(title: "Likelihood and Impact", icon: "gauge.with.dots.needle.bottom.50percent")
+                        POPSectionHeader(title: "Likelihood and Impact", icon: POPSymbol.limits)
                         POPFieldShell(label: "Likelihood") {
                             POPInlineSegments(options: RiskScale.allCases, selection: $likelihood,
                                               titleFor: { $0.title }, tintFor: { $0.color })
@@ -500,6 +506,7 @@ struct RiskEditorSheet: View {
 
                     if existing != nil {
                         POPDestructiveButton(title: "Delete Risk") { pendingDelete = true }
+                        .popRequiresConnection()
                     }
 
                     Color.clear.frame(height: 8)
@@ -511,23 +518,22 @@ struct RiskEditorSheet: View {
             .navigationTitle(existing == nil ? "Add Risk" : "Edit Risk")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(title: "Save", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
                 }
             }
             .alert("Delete this risk?", isPresented: $pendingDelete) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) {
                     if let existing {
-                        store.send(.deleteRisk(decisionID: decisionID, riskID: existing.id))
+                        submission.run(store, .deleteRisk(decisionID: decisionID, riskID: existing.id)) { dismiss() }
+                    } else {
+                        dismiss()
                     }
-                    dismiss()
                 }
             } message: {
                 Text("This removes the risk and its plans from the record.")
@@ -560,7 +566,7 @@ struct RiskEditorSheet: View {
             Haptics.error()
             return
         }
-        var risk = existing ?? Risk()
+        var risk = existing ?? Risk(id: newRecordID)
         risk.title = title.popTrimmed
         risk.optionID = optionID
         risk.likelihood = likelihood
@@ -572,11 +578,9 @@ struct RiskEditorSheet: View {
         risk.acceptWithoutMitigationReason = acceptReason.popTrimmed
         if existing == nil, !acceptReason.popIsBlank { risk.state = .accepted }
 
-        if existing == nil {
-            store.send(.addRisk(decisionID: decisionID, risk: risk))
-        } else {
-            store.send(.updateRisk(decisionID: decisionID, risk: risk))
-        }
-        dismiss()
+        let intent: AppIntent = existing == nil
+            ? .addRisk(decisionID: decisionID, risk: risk)
+            : .updateRisk(decisionID: decisionID, risk: risk)
+        submission.run(store, intent) { dismiss() }
     }
 }

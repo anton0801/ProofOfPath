@@ -41,8 +41,9 @@ enum OptionTab: String, CaseIterable, Identifiable, Hashable {
 }
 
 struct OptionDetailView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let optionID: UUID
@@ -126,7 +127,7 @@ struct OptionDetailView: View {
         .navigationTitle(option.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button { showEditor = true } label: { Label("Edit Option", systemImage: "pencil") }
                     Button {
@@ -179,8 +180,7 @@ struct OptionDetailView: View {
         .alert("Delete this option?", isPresented: $pendingDelete) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
-                store.send(.deleteOption(decisionID: decisionID, optionID: optionID))
-                dismiss()
+                submission.run(store, .deleteOption(decisionID: decisionID, optionID: optionID)) { dismiss() }
             }
         } message: {
             Text("Its evaluations, evidence links and risks will be removed. Rejecting it instead keeps the record.")
@@ -191,7 +191,7 @@ struct OptionDetailView: View {
 // MARK: - Header
 
 struct OptionHeaderCard: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let option: DecisionOption
     let decision: Decision
     let score: OptionScore?
@@ -267,7 +267,7 @@ struct OptionHeaderCard: View {
 // MARK: - Overview tab
 
 struct OptionOverviewTab: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decision: Decision
     let option: DecisionOption
     let score: OptionScore?
@@ -471,7 +471,7 @@ struct OptionOverviewTab: View {
 // MARK: - Criteria tab
 
 struct OptionCriteriaTab: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decision: Decision
     let option: DecisionOption
     let score: OptionScore?
@@ -600,7 +600,7 @@ struct EvaluationRow: View {
 // MARK: - Evidence tab
 
 struct OptionEvidenceTab: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decision: Decision
     let option: DecisionOption
     let onAdd: () -> Void
@@ -632,6 +632,7 @@ struct OptionEvidenceTab: View {
                     .buttonStyle(POPPressStyle())
                 }
                 POPSecondaryButton(title: "Add Evidence", icon: "plus", action: onAdd)
+                .popRequiresConnection()
             }
         }
     }
@@ -640,7 +641,7 @@ struct OptionEvidenceTab: View {
 // MARK: - Claims tab
 
 struct OptionClaimsTab: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decision: Decision
     let option: DecisionOption
     let onAdd: () -> Void
@@ -674,6 +675,7 @@ struct OptionClaimsTab: View {
                     ClaimRow(claim: claim, decision: decision) { editingClaim = claim }
                 }
                 POPSecondaryButton(title: "Add Claim", icon: "plus", action: onAdd)
+                .popRequiresConnection()
             }
         }
         .sheet(item: $editingClaim) { claim in
@@ -685,7 +687,7 @@ struct OptionClaimsTab: View {
 // MARK: - Risks tab
 
 struct OptionRisksTab: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decision: Decision
     let option: DecisionOption
     let onAdd: () -> Void
@@ -715,6 +717,7 @@ struct OptionRisksTab: View {
                     RiskRow(risk: risk, decision: decision) { editingRisk = risk }
                 }
                 POPSecondaryButton(title: "Add Risk", icon: "plus", action: onAdd)
+                .popRequiresConnection()
             }
         }
         .sheet(item: $editingRisk) { risk in

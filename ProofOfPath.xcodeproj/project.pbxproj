@@ -6,7 +6,22 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8F93D359305B072B003050EE /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8F93D358305B072B003050EE /* FirebaseCore */; };
+		8F93D35B305B072B003050EE /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 8F93D35A305B072B003050EE /* FirebaseMessaging */; };
+		8F93D35E305B0792003050EE /* AppsFlyerLib in Frameworks */ = {isa = PBXBuildFile; productRef = 8F93D35D305B0792003050EE /* AppsFlyerLib */; };
+		8F93D608305C6038003050EE /* NotificationServiceApp.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8F93D601305C6038003050EE /* NotificationServiceApp.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		8F93D610305C6041003050EE /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 8F93D60F305C6041003050EE /* FirebaseMessaging */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		8F93D606305C6038003050EE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8FCABEEA3025DE1900F1C8E3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8F93D600305C6038003050EE;
+			remoteInfo = NotificationServiceApp;
+		};
 		AA00000000000000000009 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8FCABEEA3025DE1900F1C8E3 /* Project object */;
@@ -23,15 +38,58 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		8F93D60D305C6038003050EE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				8F93D608305C6038003050EE /* NotificationServiceApp.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		8F93D601305C6038003050EE /* NotificationServiceApp.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationServiceApp.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8FCABEF23025DE1900F1C8E3 /* ProofOfPath.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ProofOfPath.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA00000000000000000002 /* ProofOfPathUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ProofOfPathUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB00000000000000000002 /* ProofOfPathTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ProofOfPathTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8F93D53C305C53A9003050EE /* Exceptions for "ProofOfPath" folder in "ProofOfPath" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8FCABEF13025DE1900F1C8E3 /* ProofOfPath */;
+		};
+		8F93D60C305C6038003050EE /* Exceptions for "NotificationServiceApp" folder in "NotificationServiceApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8F93D600305C6038003050EE /* NotificationServiceApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		8F93D602305C6038003050EE /* NotificationServiceApp */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8F93D60C305C6038003050EE /* Exceptions for "NotificationServiceApp" folder in "NotificationServiceApp" target */,
+			);
+			path = NotificationServiceApp;
+			sourceTree = "<group>";
+		};
 		8FCABEF43025DE1900F1C8E3 /* ProofOfPath */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8F93D53C305C53A9003050EE /* Exceptions for "ProofOfPath" folder in "ProofOfPath" target */,
+			);
 			path = ProofOfPath;
 			sourceTree = "<group>";
 		};
@@ -48,10 +106,21 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		8F93D5FE305C6038003050EE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F93D610305C6041003050EE /* FirebaseMessaging in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8FCABEEF3025DE1900F1C8E3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8F93D35B305B072B003050EE /* FirebaseMessaging in Frameworks */,
+				8F93D359305B072B003050EE /* FirebaseCore in Frameworks */,
+				8F93D35E305B0792003050EE /* AppsFlyerLib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +141,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8F93D60E305C6041003050EE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		8FCABEE93025DE1900F1C8E3 = {
 			isa = PBXGroup;
 			children = (
 				8FCABEF43025DE1900F1C8E3 /* ProofOfPath */,
 				AA00000000000000000003 /* ProofOfPathUITests */,
 				BB00000000000000000003 /* ProofOfPathTests */,
+				8F93D602305C6038003050EE /* NotificationServiceApp */,
+				8F93D60E305C6041003050EE /* Frameworks */,
 				8FCABEF33025DE1900F1C8E3 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +166,7 @@
 				8FCABEF23025DE1900F1C8E3 /* ProofOfPath.app */,
 				AA00000000000000000002 /* ProofOfPathUITests.xctest */,
 				BB00000000000000000002 /* ProofOfPathTests.xctest */,
+				8F93D601305C6038003050EE /* NotificationServiceApp.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +174,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		8F93D600305C6038003050EE /* NotificationServiceApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8F93D609305C6038003050EE /* Build configuration list for PBXNativeTarget "NotificationServiceApp" */;
+			buildPhases = (
+				8F93D5FD305C6038003050EE /* Sources */,
+				8F93D5FE305C6038003050EE /* Frameworks */,
+				8F93D5FF305C6038003050EE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8F93D602305C6038003050EE /* NotificationServiceApp */,
+			);
+			name = NotificationServiceApp;
+			packageProductDependencies = (
+				8F93D60F305C6041003050EE /* FirebaseMessaging */,
+			);
+			productName = NotificationServiceApp;
+			productReference = 8F93D601305C6038003050EE /* NotificationServiceApp.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		8FCABEF13025DE1900F1C8E3 /* ProofOfPath */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8FCABEFE3025DE1A00F1C8E3 /* Build configuration list for PBXNativeTarget "ProofOfPath" */;
@@ -102,16 +204,21 @@
 				8FCABEEE3025DE1900F1C8E3 /* Sources */,
 				8FCABEEF3025DE1900F1C8E3 /* Frameworks */,
 				8FCABEF03025DE1900F1C8E3 /* Resources */,
+				8F93D60D305C6038003050EE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				8F93D607305C6038003050EE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				8FCABEF43025DE1900F1C8E3 /* ProofOfPath */,
 			);
 			name = ProofOfPath;
 			packageProductDependencies = (
+				8F93D358305B072B003050EE /* FirebaseCore */,
+				8F93D35A305B072B003050EE /* FirebaseMessaging */,
+				8F93D35D305B0792003050EE /* AppsFlyerLib */,
 			);
 			productName = ProofOfPath;
 			productReference = 8FCABEF23025DE1900F1C8E3 /* ProofOfPath.app */;
@@ -173,6 +280,9 @@
 				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
+					8F93D600305C6038003050EE = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					8FCABEF13025DE1900F1C8E3 = {
 						CreatedOnToolsVersion = 16.4;
 					};
@@ -195,6 +305,10 @@
 			);
 			mainGroup = 8FCABEE93025DE1900F1C8E3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8F93D357305B072B003050EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				8F93D35C305B0792003050EE /* XCRemoteSwiftPackageReference "AppsFlyerFramework" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8FCABEF33025DE1900F1C8E3 /* Products */;
 			projectDirPath = "";
@@ -203,11 +317,19 @@
 				8FCABEF13025DE1900F1C8E3 /* ProofOfPath */,
 				AA00000000000000000001 /* ProofOfPathUITests */,
 				BB00000000000000000001 /* ProofOfPathTests */,
+				8F93D600305C6038003050EE /* NotificationServiceApp */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		8F93D5FF305C6038003050EE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8FCABEF03025DE1900F1C8E3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -232,6 +354,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		8F93D5FD305C6038003050EE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8FCABEEE3025DE1900F1C8E3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -256,6 +385,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		8F93D607305C6038003050EE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8F93D600305C6038003050EE /* NotificationServiceApp */;
+			targetProxy = 8F93D606305C6038003050EE /* PBXContainerItemProxy */;
+		};
 		AA00000000000000000008 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8FCABEF13025DE1900F1C8E3 /* ProofOfPath */;
@@ -269,6 +403,67 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		8F93D60A305C6038003050EE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationServiceApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationServiceApp;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.app.proofsofpaths.NotificationServiceApp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		8F93D60B305C6038003050EE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NotificationServiceApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NotificationServiceApp;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.app.proofsofpaths.NotificationServiceApp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		8FCABEFC3025DE1A00F1C8E3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -393,6 +588,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ProofOfPath/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Proofs Of Paths";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Allow to use your camera to make photos in application.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Proofs Of Paths uses tracking data to better understand how people interact with the app, improve overall performance, and provide more relevant content and experiences based on usage.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -403,11 +602,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.3;
-				MARKETING_VERSION = 1.00.0;
+				MARKETING_VERSION = 2.00.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.app.proofsofpaths;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -430,6 +629,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ProofOfPath/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Proofs Of Paths";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Allow to use your camera to make photos in application.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Proofs Of Paths uses tracking data to better understand how people interact with the app, improve overall performance, and provide more relevant content and experiences based on usage.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -440,11 +643,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.3;
-				MARKETING_VERSION = 1.00.0;
+				MARKETING_VERSION = 2.00.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.app.proofsofpaths;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -464,7 +667,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ProofOfPath.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -484,7 +687,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ProofOfPath.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -505,7 +708,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ProofOfPath.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -526,7 +729,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ProofOfPath.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -542,6 +745,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		8F93D609305C6038003050EE /* Build configuration list for PBXNativeTarget "NotificationServiceApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8F93D60A305C6038003050EE /* Debug */,
+				8F93D60B305C6038003050EE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		8FCABEED3025DE1900F1C8E3 /* Build configuration list for PBXProject "ProofOfPath" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -579,6 +791,48 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8F93D357305B072B003050EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.19.2;
+			};
+		};
+		8F93D35C305B0792003050EE /* XCRemoteSwiftPackageReference "AppsFlyerFramework" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AppsFlyerSDK/AppsFlyerFramework";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.18.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8F93D358305B072B003050EE /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8F93D357305B072B003050EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		8F93D35A305B072B003050EE /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8F93D357305B072B003050EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		8F93D35D305B0792003050EE /* AppsFlyerLib */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8F93D35C305B0792003050EE /* XCRemoteSwiftPackageReference "AppsFlyerFramework" */;
+			productName = AppsFlyerLib;
+		};
+		8F93D60F305C6041003050EE /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8F93D357305B072B003050EE /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8FCABEEA3025DE1900F1C8E3 /* Project object */;
 }

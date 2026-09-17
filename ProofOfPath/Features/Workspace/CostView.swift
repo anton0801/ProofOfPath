@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CostView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -223,6 +223,7 @@ struct CostView: View {
             POPSecondaryButton(title: "Edit Assumptions", icon: "square.and.pencil") {
                 editingOptionID = breakdown.optionID
             }
+            .popRequiresConnection()
         }
         .popCard()
     }
@@ -280,8 +281,9 @@ struct IdentifiableUUID: Identifiable, Hashable {
 // MARK: - Cost assumptions editor
 
 struct CostAssumptionsSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let optionID: UUID
@@ -391,14 +393,12 @@ struct CostAssumptionsSheet: View {
             .navigationTitle("Cost Assumptions")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(title: "Save", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
                 }
             }
         }
@@ -430,7 +430,6 @@ struct CostAssumptionsSheet: View {
         option.cost.estimatedMaintenance = POPFormat.parseNumber(maintenanceText)
         option.cost.potentialSavings = POPFormat.parseNumber(savingsText)
         option.cost.assumptions = assumptions.popTrimmed
-        store.send(.updateOption(decisionID: decisionID, option: option))
-        dismiss()
+        submission.run(store, .updateOption(decisionID: decisionID, option: option)) { dismiss() }
     }
 }

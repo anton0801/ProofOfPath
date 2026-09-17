@@ -7,7 +7,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
 
     @State private var ownerName = ""
     @State private var showDeleteAll = false
@@ -26,8 +26,11 @@ struct SettingsView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: POPMetrics.sectionGap) {
                 CoinStrikeFeatureBanner(asset: "CoinStrikeSettings")
+                accountCard
                 preferencesCard
+                    .popRequiresConnection()
                 remindersCard
+                    .popRequiresConnection()
                 dataCard
                 storageCard
                 aboutCard
@@ -69,7 +72,7 @@ struct SettingsView: View {
                 pendingImport = nil
             }
         } message: { data in
-            Text("The backup holds \(data.decisions.count) decisions and \(data.evidence.count) evidence items. Everything currently in the app will be replaced. Attachment files are not part of a backup — evidence that had a file will show it as missing.")
+            Text("The backup holds \(data.decisions.count) decisions and \(data.evidence.count) evidence items. Everything currently in your account will be replaced. Attachment files are not part of a backup, so evidence that had a file is restored without it.")
         }
         .alert("Something went wrong", isPresented: Binding(
             get: { errorMessage != nil },
@@ -92,10 +95,68 @@ struct SettingsView: View {
                 deleteConfirmationText = ""
             }
         } message: {
-            Text("Every decision, criterion, option, evidence item, claim, risk, scenario and review will be removed from this device permanently. Export a backup first if you might want any of it back.")
+            Text("Your ProofPath account and every decision, criterion, option, evidence item, file, claim, risk, scenario and review in it will be permanently deleted from the server and from this device. Export a backup first if you might want any of it back.")
         }
         .sheet(isPresented: $showAbout) {
             AboutSheet()
+        }
+    }
+
+    // MARK: Account
+
+    private var accountCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            POPSectionHeader(
+                title: "Account",
+                subtitle: "An anonymous account linked to this device. No email, no password.",
+                icon: "person.crop.circle.badge.checkmark"
+            )
+            HStack(spacing: 10) {
+                Image(systemName: connectionIcon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(store.connection == .online ? POPColor.success : POPColor.warning)
+                    .frame(width: 34, height: 34)
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(store.connection == .online ? POPColor.successSoft : POPColor.warningSoft))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(connectionTitle)
+                        .font(POPFont.calloutMedium)
+                        .foregroundStyle(POPColor.ink)
+                    Text(connectionDetail)
+                        .font(POPFont.caption)
+                        .foregroundStyle(POPColor.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                if store.connection == .offline {
+                    POPTextButton(title: "Retry", icon: "arrow.clockwise") { store.retryNow() }
+                }
+            }
+        }
+        .popCard()
+    }
+
+    private var connectionIcon: String {
+        switch store.connection {
+        case .online: return "checkmark.icloud"
+        case .connecting: return POPSymbol.syncing
+        case .offline: return "icloud.slash"
+        }
+    }
+
+    private var connectionTitle: String {
+        switch store.connection {
+        case .online: return "Saved to your ProofPath account"
+        case .connecting: return "Connecting…"
+        case .offline: return "Offline"
+        }
+    }
+
+    private var connectionDetail: String {
+        switch store.connection {
+        case .online: return "Every change is stored on the server as you make it."
+        case .connecting: return "Loading the latest data from the server."
+        case .offline: return "Showing the copy saved on this device. Changes need a connection."
         }
     }
 
@@ -251,6 +312,7 @@ struct SettingsView: View {
             ) {
                 showImporter = true
             }
+            .popRequiresConnection()
             .padding(.horizontal, POPMetrics.cardPadding)
             .padding(.vertical, 4)
 
@@ -287,7 +349,7 @@ struct SettingsView: View {
         return VStack(alignment: .leading, spacing: 12) {
             POPSectionHeader(
                 title: "Attachment Storage",
-                subtitle: "Photos and documents you attached, stored on this device only.",
+                subtitle: "Files live in your ProofPath account. Copies on this device keep them viewable offline.",
                 icon: "internaldrive"
             )
             HStack(spacing: 10) {
@@ -301,7 +363,7 @@ struct SettingsView: View {
                     style: removed == 0 ? .info : .success
                 )
             }
-            POPInlineNote(text: "Attachments are not included in an exported backup — only the records that reference them.")
+            POPInlineNote(text: "Clean Up removes only copies on this device that nothing uses. Attachments are not included in an exported backup — only the records that reference them.")
         }
         .popCard()
     }
@@ -329,8 +391,9 @@ struct SettingsView: View {
             POPDestructiveButton(title: "Delete All Data") {
                 showDeleteAll = true
             }
+            .popRequiresConnection()
             POPInlineNote(
-                text: "This cannot be undone and there is no cloud copy. Export a backup first.",
+                text: "Deletes your account and everything in it from the server and this device. This cannot be undone. Export a backup first.",
                 icon: "exclamationmark.triangle.fill",
                 tint: POPColor.danger
             )
@@ -393,7 +456,7 @@ struct AboutSheet: View {
 
                     VStack(alignment: .leading, spacing: 11) {
                         POPSectionHeader(title: "How it works", icon: "arrow.triangle.branch")
-                        aboutLine("Everything is stored locally on this device. There is no account and no server.")
+                        aboutLine("Your data is stored in an anonymous ProofPath account linked to this device — no email, no password. A copy stays on the device so you can read it offline.")
                         aboutLine("Every score is calculated from criteria weights and the ratings you enter, renormalised over the criteria you actually evaluated.")
                         aboutLine("Must-Have criteria and hard constraints act as gates: an option that fails one cannot lead, whatever its score.")
                         aboutLine("Finalizing a decision saves a read-only snapshot. Reopening it creates a new version and leaves the old one intact.")
@@ -418,7 +481,7 @@ struct AboutSheet: View {
             .navigationTitle("About")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(POPFont.bodyMedium)
                         .foregroundStyle(POPColor.brandOrange)

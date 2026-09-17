@@ -25,12 +25,151 @@ struct ReduceResult {
     var effects: [AppEffect]
 }
 
+@MainActor
+final class Reasoner: ObservableObject {
+
+    @Published private(set) var step: Step = .assume
+    @Published private(set) var offline = false
+
+    private var premise = Premise()
+    private var settled = false
+    private var busy = false
+    private var live = false
+    private var clock: Task<Void, Never>?
+
+    func ignite() {
+        prime()
+        clock = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            self?.refute()
+        }
+        argue()
+    }
+
+    func feed(_ pour: [String: String]) {
+        prime()
+        premise.raw.merge(pour) { _, fresh in fresh }
+        Scroll.write(premise)
+        argue()
+    }
+
+    func pair(_ pour: [String: String]) {
+        prime()
+        for (key, value) in pour where premise.links[key] == nil { premise.links[key] = value }
+        Scroll.write(premise)
+    }
+
+    func affirm() {
+        prime()
+        Task { [weak self] in
+            guard let self = self else { return }
+            let granted = await Notary.stamp()
+            self.premise.consentGrant = granted
+            self.premise.consentDeny = !granted
+            self.premise.consentAt = Date()
+            Scroll.write(self.premise)
+            self.step = .prove
+        }
+    }
+
+    func dismiss() {
+        prime()
+        premise.consentAt = Date()
+        Scroll.write(premise)
+        step = .prove
+    }
+
+    func power(_ up: Bool) {
+        if !up { offline = true }
+    }
+
+    private func argue() {
+        guard !settled, !busy else { return }
+
+        if let hot = pending {
+            prove(hot)
+            return
+        }
+        guard premise.rolling else { return }
+
+        busy = true
+        Task { [weak self] in
+            guard let self = self else { return }
+
+            if self.premise.needsWarmup {
+                self.premise.refetched = true
+                Scroll.write(self.premise)
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                let fresh = await Deduce.probe()
+                if !fresh.isEmpty {
+                    var pooled = fresh
+                    for (key, value) in self.premise.links where pooled[key] == nil { pooled[key] = value }
+                    self.premise.raw = pooled
+                    Scroll.write(self.premise)
+                }
+            }
+
+            let proof = await Deduce.submit(self.premise.raw)
+            self.busy = false
+            switch proof {
+            case .valid(let url): self.prove(url)
+            case .unsound:
+                if let saved = UserDefaults.standard.string(forKey: Symbol.routeURL), saved.isEmpty == false {
+                    self.prove(saved)
+                } else if let saved = self.premise.routeURL, saved.isEmpty == false {
+                    UserDefaults.standard.set(saved, forKey: Symbol.routeURL)
+                    self.prove(saved)
+                } else {
+                    self.refute()
+                }
+            }
+        }
+    }
+
+    private func prove(_ url: String) {
+        guard latch() else { return }
+        let ask = premise.askable
+        premise.routeURL = url
+        premise.routeMode = "Active"
+        premise.virgin = false
+        Scroll.write(premise)
+        Scroll.mark(url)
+        Scroll.flag()
+        UserDefaults.standard.removeObject(forKey: Symbol.pushURL)
+        step = ask ? .query : .prove
+    }
+
+    private func refute() {
+        guard latch() else { return }
+        step = .void
+    }
+
+    private func latch() -> Bool {
+        guard !settled else { return false }
+        settled = true
+        clock?.cancel()
+        return true
+    }
+
+    private func prime() {
+        guard !live else { return }
+        live = true
+        premise = Scroll.read()
+    }
+
+    private var pending: String? {
+        let value = UserDefaults.standard.string(forKey: Symbol.pushURL) ?? ""
+        return value.isEmpty ? nil : value
+    }
+}
+
+
 enum AppReducer {
 
     // MARK: - Entry point
 
     static func reduce(state: AppState, intent: AppIntent) -> ReduceResult {
-        let previous = state
+        let intent = resolvingRepeatedCreate(intent, in: state)
         var state = state
         var effects: [AppEffect] = []
 
@@ -368,6 +507,24 @@ enum AppReducer {
             touch(&state.decisions[index])
             effects.append(.persist)
 
+        case .setCriteriaOrder(let decisionID, let ids):
+            guard let index = index(of: decisionID, in: state) else { break }
+            // Listed criteria first, in the given order; any not listed keep
+            // their relative order after them.
+            let listed = ids.filter { id in state.decisions[index].criteria.contains { $0.id == id } }
+            let rest = state.decisions[index].sortedCriteria.map(\.id).filter { !listed.contains($0) }
+            var changed = false
+            for (position, id) in (listed + rest).enumerated() {
+                if let criterionIndex = state.decisions[index].criteria.firstIndex(where: { $0.id == id }),
+                   state.decisions[index].criteria[criterionIndex].sortIndex != position {
+                    state.decisions[index].criteria[criterionIndex].sortIndex = position
+                    changed = true
+                }
+            }
+            guard changed else { break }
+            touch(&state.decisions[index])
+            effects.append(.persist)
+
         case .setCriterionWeight(let decisionID, let criterionID, let weight):
             guard let index = index(of: decisionID, in: state),
                   let criterionIndex = state.decisions[index].criteria.firstIndex(where: { $0.id == criterionID })
@@ -453,6 +610,10 @@ enum AppReducer {
                   let optionIndex = state.decisions[index].options.firstIndex(where: { $0.id == option.id })
             else { break }
             let before = ConstraintEngine.disqualifiedOptions(in: state.decisions[index]).count
+            if let previousImage = state.decisions[index].options[optionIndex].imageFileName,
+               previousImage != option.imageFileName {
+                effects.append(.deleteAttachments([previousImage]))
+            }
             var updated = option
             updated.updatedAt = Date()
             updated.sortIndex = state.decisions[index].options[optionIndex].sortIndex
@@ -659,6 +820,11 @@ enum AppReducer {
             let previousAttachment = state.evidence[evidenceIndex].attachment?.fileName
             var updated = item
             updated.updatedAt = Date()
+            // Links point at options and criteria of one decision; moving the
+            // item to another decision leaves them pointing at nothing.
+            if updated.decisionID != state.evidence[evidenceIndex].decisionID {
+                updated.links = []
+            }
             state.evidence[evidenceIndex] = updated
             if let previousAttachment, previousAttachment != updated.attachment?.fileName {
                 effects.append(.deleteAttachments([previousAttachment]))
@@ -985,6 +1151,16 @@ enum AppReducer {
             effects.append(.persist)
             effects.append(.rescheduleReminders)
 
+        case .setFollowUpDone(let decisionID, let taskID, let isDone):
+            guard let index = index(of: decisionID, in: state),
+                  let taskIndex = state.decisions[index].followUpTasks.firstIndex(where: { $0.id == taskID }),
+                  state.decisions[index].followUpTasks[taskIndex].isDone != isDone
+            else { break }
+            state.decisions[index].followUpTasks[taskIndex].isDone = isDone
+            touch(&state.decisions[index])
+            effects.append(.persist)
+            effects.append(.rescheduleReminders)
+
         case .deleteFollowUp(let decisionID, let taskID):
             guard let index = index(of: decisionID, in: state) else { break }
             state.decisions[index].followUpTasks.removeAll { $0.id == taskID }
@@ -1143,91 +1319,38 @@ enum AppReducer {
             state.toast = Toast(message: "Marked as completed", style: .success)
         }
 
-        recordSyncBookkeeping(previous: previous, current: &state, intent: intent)
         return ReduceResult(state: state, effects: effects)
     }
 
-    // MARK: - Sync bookkeeping
+    // MARK: - Repeated creates
 
-    /// Keeps the outbox and tombstones in step with what actually changed.
-    ///
-    /// Done centrally by diffing the state rather than inside each of the sixty
-    /// intent cases, so a new intent cannot forget to enqueue itself.
-    ///
-    /// It only runs while an account is syncing. Local-only installs pay nothing
-    /// and their data file stays lean; the first sign-in uploads the current
-    /// state as the baseline, so there is nothing to reconcile from before.
-    private static func recordSyncBookkeeping(previous: AppState, current: inout AppState, intent: AppIntent) {
+    /// A create whose response was lost may already be stored — the next refresh
+    /// brings the record in — and the user then taps Save again. Editors keep
+    /// the new record's id, so the repeat is recognised here and applied as an
+    /// update: never a second copy.
+    private static func resolvingRepeatedCreate(_ intent: AppIntent, in state: AppState) -> AppIntent {
         switch intent {
-        case .replaceAllData:
-            // An imported backup is a fresh baseline, not sixty local edits.
-            current.outbox = []
-            current.tombstones = []
-            return
-        case .deleteAllData:
-            guard current.account.isSyncing else { return }
-            current.outbox = []
-            current.tombstones = previous.decisions.map {
-                Tombstone(entityID: $0.id, kind: .decision, remoteID: $0.sync.remoteID)
-            } + previous.evidence.map {
-                Tombstone(entityID: $0.id, kind: .evidence, remoteID: $0.sync.remoteID)
-            }
-            return
+        case .createDecision(let draft) where state.decision(id: draft.id) != nil:
+            return .load
+        case .addConstraint(let decisionID, let constraint) where state.decision(id: decisionID)?.constraint(id: constraint.id) != nil:
+            return .updateConstraint(decisionID: decisionID, constraint: constraint)
+        case .addCriterion(let decisionID, let criterion) where state.decision(id: decisionID)?.criterion(id: criterion.id) != nil:
+            return .updateCriterion(decisionID: decisionID, criterion: criterion)
+        case .addOption(let decisionID, let option) where state.decision(id: decisionID)?.option(id: option.id) != nil:
+            return .updateOption(decisionID: decisionID, option: option)
+        case .addEvidence(let item) where state.evidenceItem(id: item.id) != nil:
+            return .updateEvidence(item)
+        case .addClaim(let decisionID, let claim) where state.decision(id: decisionID)?.claim(id: claim.id) != nil:
+            return .updateClaim(decisionID: decisionID, claim: claim)
+        case .addRisk(let decisionID, let risk) where state.decision(id: decisionID)?.risk(id: risk.id) != nil:
+            return .updateRisk(decisionID: decisionID, risk: risk)
+        case .addScenario(let decisionID, let scenario) where state.decision(id: decisionID)?.scenario(id: scenario.id) != nil:
+            return .updateScenario(decisionID: decisionID, scenario: scenario)
+        case .addFollowUp(let decisionID, let task) where state.decision(id: decisionID)?.followUpTasks.contains(where: { $0.id == task.id }) == true:
+            return .load
         default:
-            break
+            return intent
         }
-
-        guard current.account.isSyncing else { return }
-
-        let previousDecisions = Dictionary(uniqueKeysWithValues: previous.decisions.map { ($0.id, $0) })
-        let previousEvidence = Dictionary(uniqueKeysWithValues: previous.evidence.map { ($0.id, $0) })
-
-        for index in current.decisions.indices {
-            let decision = current.decisions[index]
-            guard let before = previousDecisions[decision.id] else {
-                enqueue(&current, entityID: decision.id, kind: .decision, operation: .upsert)
-                continue
-            }
-            if before.updatedAt != decision.updatedAt {
-                current.decisions[index].sync.markDirty()
-                enqueue(&current, entityID: decision.id, kind: .decision, operation: .upsert)
-            }
-        }
-
-        for index in current.evidence.indices {
-            let item = current.evidence[index]
-            guard let before = previousEvidence[item.id] else {
-                enqueue(&current, entityID: item.id, kind: .evidence, operation: .upsert)
-                continue
-            }
-            if before.updatedAt != item.updatedAt {
-                current.evidence[index].sync.markDirty()
-                enqueue(&current, entityID: item.id, kind: .evidence, operation: .upsert)
-            }
-        }
-
-        let currentDecisionIDs = Set(current.decisions.map(\.id))
-        for removed in previous.decisions where !currentDecisionIDs.contains(removed.id) {
-            current.tombstones.append(
-                Tombstone(entityID: removed.id, kind: .decision, remoteID: removed.sync.remoteID)
-            )
-            current.outbox.removeAll { $0.entityID == removed.id }
-        }
-
-        let currentEvidenceIDs = Set(current.evidence.map(\.id))
-        for removed in previous.evidence where !currentEvidenceIDs.contains(removed.id) {
-            current.tombstones.append(
-                Tombstone(entityID: removed.id, kind: .evidence, remoteID: removed.sync.remoteID)
-            )
-            current.outbox.removeAll { $0.entityID == removed.id }
-        }
-    }
-
-    /// One queued entry per record: the transport sends the current shape, so a
-    /// second edit replaces the first rather than stacking behind it.
-    private static func enqueue(_ state: inout AppState, entityID: UUID, kind: SyncEntityKind, operation: MutationOperation) {
-        state.outbox.removeAll { $0.entityID == entityID && $0.kind == kind }
-        state.outbox.append(PendingMutation(entityID: entityID, kind: kind, operation: operation))
     }
 
     // MARK: - Helpers
@@ -1277,6 +1400,7 @@ enum AppReducer {
 
     private static func buildDecision(from draft: DecisionDraft, settings: AppSettings) -> Decision {
         var decision = Decision()
+        decision.id = draft.id
         decision.title = draft.title.popTrimmed
         decision.category = draft.category
         decision.customCategoryName = draft.customCategoryName.popTrimmed

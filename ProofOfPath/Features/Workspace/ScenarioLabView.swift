@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ScenarioLabView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -46,7 +46,7 @@ struct ScenarioLabView: View {
 
                 if decision.scenarios.isEmpty {
                     POPEmptyState(
-                        icon: "flask",
+                        icon: POPSymbol.scenarioLab,
                         title: "No scenarios yet",
                         message: "Test what happens if the budget drops, the deadline moves, or one criterion suddenly matters more.",
                         actionTitle: "Create Scenario",
@@ -60,6 +60,7 @@ struct ScenarioLabView: View {
                     POPPrimaryButton(title: "Create Scenario", icon: "plus") {
                         showPresetPicker = true
                     }
+                    .popRequiresConnection()
                 }
 
                 Color.clear.frame(height: 16)
@@ -317,7 +318,7 @@ struct ScenarioLabView: View {
 // MARK: - Preset picker
 
 struct ScenarioPresetPicker: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -390,7 +391,7 @@ struct ScenarioPresetPicker: View {
             .navigationTitle("Create Scenario")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
@@ -402,8 +403,9 @@ struct ScenarioPresetPicker: View {
 // MARK: - Scenario editor
 
 struct ScenarioEditorSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let scenario: Scenario
@@ -522,7 +524,7 @@ struct ScenarioEditorSheet: View {
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
-                    POPSectionHeader(title: "Limits", icon: "gauge.with.dots.needle.bottom.50percent")
+                    POPSectionHeader(title: "Limits", icon: POPSymbol.limits)
                     POPNumberField(
                         label: "Budget Limit",
                         text: $budgetText,
@@ -585,14 +587,12 @@ struct ScenarioEditorSheet: View {
         .navigationTitle(isNew ? "New Scenario" : "Edit Scenario")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Button("Cancel") { dismiss() }
                     .foregroundStyle(POPColor.inkSecondary)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Save Scenario") { save() }
-                    .font(POPFont.bodyMedium)
-                    .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                POPToolbarSaveButton(title: "Save Scenario", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
             }
         }
     }
@@ -622,11 +622,9 @@ struct ScenarioEditorSheet: View {
         updated.excludedOptionIDs = Array(excluded)
         updated.additionalConstraint = additionalConstraint.popTrimmed
 
-        if isNew {
-            store.send(.addScenario(decisionID: decisionID, scenario: updated))
-        } else {
-            store.send(.updateScenario(decisionID: decisionID, scenario: updated))
-        }
-        dismiss()
+        let intent: AppIntent = isNew
+            ? .addScenario(decisionID: decisionID, scenario: updated)
+            : .updateScenario(decisionID: decisionID, scenario: updated)
+        submission.run(store, intent) { dismiss() }
     }
 }

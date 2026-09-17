@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct DecisionHistoryView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -58,7 +58,7 @@ struct DecisionHistoryView: View {
                         }
                         .padding(.horizontal, 1)
                     }
-                    .scrollClipDisabled()
+                    .popScrollClipDisabled()
 
                     let list = events(decision)
                     if list.isEmpty {
@@ -131,7 +131,7 @@ struct DecisionHistoryView: View {
 // MARK: - Snapshot viewer
 
 struct SnapshotView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID

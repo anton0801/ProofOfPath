@@ -7,13 +7,20 @@ import XCTest
 
 extension XCUIApplication {
 
-    /// Launches with a clean container so each test starts from a known state.
-    static func launchFresh(resetData: Bool = true, skipOnboarding: Bool = false) -> XCUIApplication {
+    /// The API the app under test talks to. UI tests need a running server
+    /// (see Server/README.md); override with TEST_RUNNER_POP_UITEST_API.
+    static var testAPI: String {
+        ProcessInfo.processInfo.environment["POP_UITEST_API"] ?? "http://127.0.0.1:8080/api/v1"
+    }
+
+    /// Launches as a brand-new device so each test starts from a known state.
+    static func launchFresh(resetData: Bool = true, skipOnboarding: Bool = false, api: String = testAPI) -> XCUIApplication {
         // The app is portrait-only on iPhone; make sure the device agrees before
         // the run so element frames are in the geometry the app was built for.
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.terminate()
+        app.launchArguments = ["-POPAPIBaseURL", api]
         if resetData { app.launchArguments += ["-POPResetData"] }
         if skipOnboarding { app.launchArguments += ["-POPSkipOnboarding"] }
         app.launch()
@@ -111,6 +118,18 @@ extension XCTestCase {
             swipes += 1
         }
         return element.exists && element.isHittable
+    }
+
+    /// Saves a screenshot to POP_UITEST_SHOTS (a host folder) when it is set.
+    func screenshot(_ name: String) {
+        let shot = XCUIScreen.main.screenshot()
+        let attachment = XCTAttachment(screenshot: shot)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        if let folder = ProcessInfo.processInfo.environment["POP_UITEST_SHOTS"] {
+            try? shot.pngRepresentation.write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(name).png"))
+        }
     }
 
     /// Dismisses the keyboard by tapping a neutral point, then waits for it to go.

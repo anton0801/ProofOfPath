@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct TemplatesView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
 
     @State private var selectedTemplateID: String?
     @State private var showCreate = false

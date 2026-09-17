@@ -9,6 +9,8 @@ import Foundation
 
 /// Payload used when creating a decision from the wizard.
 struct DecisionDraft: Equatable {
+    /// The id the new decision gets.
+    var id: UUID = UUID()
     var title: String = ""
     var category: DecisionCategory = .purchase
     var customCategoryName: String = ""
@@ -67,6 +69,9 @@ enum AppIntent: Equatable {
     case deleteCriterion(decisionID: UUID, criterionID: UUID)
     case duplicateCriterion(decisionID: UUID, criterionID: UUID)
     case moveCriteria(decisionID: UUID, from: IndexSet, to: Int)
+    /// The complete order, by id. Unlike a move by index, sending it twice
+    /// (a double tap while the first save is on its way) gives the same result.
+    case setCriteriaOrder(decisionID: UUID, ids: [UUID])
     case setCriterionWeight(decisionID: UUID, criterionID: UUID, weight: Double)
     case balanceCriteriaWeights(decisionID: UUID)
     case applyTemplateCriteria(decisionID: UUID, templateID: String, criteria: [TemplateCriterion])
@@ -119,6 +124,8 @@ enum AppIntent: Equatable {
     case removeAcceptedUnknown(decisionID: UUID, unknownID: UUID)
     case addFollowUp(decisionID: UUID, task: FollowUpTask)
     case toggleFollowUp(decisionID: UUID, taskID: UUID)
+    /// Absolute, so a repeated tap cannot flip it back.
+    case setFollowUpDone(decisionID: UUID, taskID: UUID, isDone: Bool)
     case deleteFollowUp(decisionID: UUID, taskID: UUID)
 
     // MARK: Finalize

@@ -11,8 +11,12 @@ import PhotosUI
 import UniformTypeIdentifiers
 
 struct EvidenceEditorSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    /// Fixed for the life of the sheet, so saving again after a lost response
+    /// updates the same record instead of creating a second one.
+    @State private var newRecordID = UUID()
+    @StateObject private var submission = POPSubmission()
 
     let existing: Evidence?
     var presetDecisionID: UUID?
@@ -205,19 +209,17 @@ struct EvidenceEditorSheet: View {
             .navigationTitle(existing == nil ? "Add Evidence" : "Edit Evidence")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(title: "Save", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
                 }
             }
         }
         .onAppear(perform: hydrate)
-        .onChange(of: photoItem) { _, newItem in
+        .popOnChange(of: photoItem) { newItem in
             guard let newItem else { return }
             loadPhoto(newItem)
         }
@@ -234,7 +236,7 @@ struct EvidenceEditorSheet: View {
 
     private var attachmentSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            POPFieldShell(label: "Attachment", hint: "Stored on this device only. Maximum 25 MB.") {
+            POPFieldShell(label: "Attachment", hint: "Uploaded to your ProofPath account when you save. Maximum 25 MB.") {
                 VStack(spacing: 10) {
                     if isLoadingAttachment {
                         HStack(spacing: 9) {
@@ -485,7 +487,7 @@ struct EvidenceEditorSheet: View {
             Haptics.error()
             return
         }
-        var item = existing ?? Evidence()
+        var item = existing ?? Evidence(id: newRecordID)
         item.decisionID = decisionID
         item.title = title.popTrimmed
         item.type = type
@@ -505,10 +507,9 @@ struct EvidenceEditorSheet: View {
                 link.relation = linkRelation
                 item.links = [link]
             }
-            store.send(.addEvidence(item))
+            submission.run(store, .addEvidence(item)) { dismiss() }
         } else {
-            store.send(.updateEvidence(item))
+            submission.run(store, .updateEvidence(item)) { dismiss() }
         }
-        dismiss()
     }
 }

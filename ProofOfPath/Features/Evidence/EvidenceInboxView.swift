@@ -26,7 +26,7 @@ enum EvidenceSort: String, CaseIterable, Identifiable, Hashable {
 }
 
 struct EvidenceInboxView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
 
     @State private var search = ""
     @State private var verificationFilter: VerificationStatus?
@@ -132,7 +132,7 @@ struct EvidenceInboxView: View {
         .background(POPColor.canvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Picker("Sort by", selection: $sort) {
                         ForEach(EvidenceSort.allCases) { option in
@@ -146,7 +146,7 @@ struct EvidenceInboxView: View {
                 }
                 .accessibilityLabel(Text("Sort"))
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     Haptics.tap()
                     showEditor = true
@@ -155,14 +155,14 @@ struct EvidenceInboxView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(POPColor.graphite)
                 }
-                .disabled(store.state.decisions.isEmpty)
+                .disabled(store.state.decisions.isEmpty || !store.canEdit)
                 .accessibilityLabel(Text("Add evidence"))
             }
         }
         .sheet(isPresented: $showEditor) {
             EvidenceEditorSheet(existing: nil, presetDecisionID: decisionFilter)
         }
-        .navigationDestination(item: $route) { destination in
+        .popNavigationDestination(item: $route) { destination in
             if case .evidenceDetail(let id) = destination {
                 EvidenceDetailView(evidenceID: id)
             }
@@ -219,7 +219,7 @@ struct EvidenceInboxView: View {
                 }
                 .padding(.horizontal, 1)
             }
-            .scrollClipDisabled()
+            .popScrollClipDisabled()
 
             if decisionsWithEvidence.count > 1 {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -240,7 +240,7 @@ struct EvidenceInboxView: View {
                     }
                     .padding(.horizontal, 1)
                 }
-                .scrollClipDisabled()
+                .popScrollClipDisabled()
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -257,7 +257,7 @@ struct EvidenceInboxView: View {
                 }
                 .padding(.horizontal, 1)
             }
-            .scrollClipDisabled()
+            .popScrollClipDisabled()
         }
     }
 }

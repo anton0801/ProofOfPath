@@ -8,20 +8,18 @@ import SwiftUI
 @main
 struct ProofOfPathApp: App {
 
-    @State private var store = AppStore()
-    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var store = AppStore()
+    
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {
         WindowGroup {
+            // Scene-phase changes are handled in RootView: the scene-level
+            // onChange with old and new values needs iOS 17.
             RootView()
-                .environment(store)
+                .environmentObject(store)
                 .preferredColorScheme(.light)
                 .tint(POPColor.brandOrange)
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase != .active {
-                store.flush()
-            }
         }
     }
 }

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ComparisonMatrixView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -85,12 +85,12 @@ struct ComparisonMatrixView: View {
         .navigationTitle("Comparison Matrix")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Toggle("Show rejected options", isOn: $showRejected)
                     Divider()
                     NavigationLink(value: AppRoute.scenarioLab(decisionID)) {
-                        Label("Scenario Lab", systemImage: "flask")
+                        Label("Scenario Lab", systemImage: POPSymbol.scenarioLab)
                     }
                     NavigationLink(value: AppRoute.costView(decisionID)) {
                         Label("Total Cost View", systemImage: "banknote")
@@ -163,7 +163,7 @@ struct ComparisonMatrixView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .padding(.horizontal, POPMetrics.gutter)
         }
-        .scrollClipDisabled()
+        .popScrollClipDisabled()
     }
 
     private func headerRow(decision: Decision, options: [DecisionOption], scoreboard: DecisionScoreboard) -> some View {
@@ -463,7 +463,7 @@ struct MatrixCellSelection: Identifiable, Hashable {
 // MARK: - Evaluation details
 
 struct EvaluationDetailsSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -632,6 +632,7 @@ struct EvaluationDetailsSheet: View {
                 POPPrimaryButton(title: "Edit Evaluation", icon: "square.and.pencil") {
                     showEvaluationEditor = true
                 }
+                .popRequiresConnection()
 
                 Color.clear.frame(height: 12)
             }
@@ -642,7 +643,7 @@ struct EvaluationDetailsSheet: View {
         .navigationTitle("Evaluation Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Button("Close") { dismiss() }
                     .foregroundStyle(POPColor.inkSecondary)
             }

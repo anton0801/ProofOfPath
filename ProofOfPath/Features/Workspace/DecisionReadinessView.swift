@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct DecisionReadinessView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -75,7 +75,7 @@ struct DecisionReadinessView: View {
         .background(POPColor.canvas.ignoresSafeArea())
         .navigationTitle("Decision Readiness")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $route) { destination in
+        .popNavigationDestination(item: $route) { destination in
             if case .decisionSection(let id, let section) = destination {
                 DecisionWorkspaceView(decisionID: id, initialSection: section)
             }

@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct InsightsView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
 
     @State private var expandedInsightID: String?
     @State private var route: AppRoute?
@@ -41,7 +41,7 @@ struct InsightsView: View {
         }
         .background(POPColor.canvas.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $route) { destination in
+        .popNavigationDestination(item: $route) { destination in
             if case .decision(let id) = destination {
                 DecisionWorkspaceView(decisionID: id, initialSection: .decision)
             }

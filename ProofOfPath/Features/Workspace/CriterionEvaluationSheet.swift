@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct CriterionEvaluationSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let optionID: UUID
@@ -198,14 +199,12 @@ struct CriterionEvaluationSheet: View {
         .navigationTitle("Evaluate Option")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Button("Cancel") { dismiss() }
                     .foregroundStyle(POPColor.inkSecondary)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Save Evaluation") { save() }
-                    .font(POPFont.bodyMedium)
-                    .foregroundStyle(canSave ? POPColor.brandOrange : POPColor.inkTertiary)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                POPToolbarSaveButton(title: "Save Evaluation", isSaving: submission.isRunning, isHighlighted: canSave) { save() }
             }
             ToolbarItem(placement: .bottomBar) {
                 if hasExistingEvaluation {
@@ -227,8 +226,7 @@ struct CriterionEvaluationSheet: View {
         .alert("Clear this evaluation?", isPresented: $showClearConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) {
-                store.send(.clearEvaluation(decisionID: decisionID, optionID: optionID, criterionID: criterionID))
-                dismiss()
+                submission.run(store, .clearEvaluation(decisionID: decisionID, optionID: optionID, criterionID: criterionID)) { dismiss() }
             }
         } message: {
             Text("The rating, measured value and reason are removed. Linked evidence stays attached.")
@@ -321,6 +319,7 @@ struct CriterionEvaluationSheet: View {
             POPSecondaryButton(title: "Link Evidence", icon: "link") {
                 showEvidencePicker = true
             }
+            .popRequiresConnection()
         }
         .popCard()
     }
@@ -397,15 +396,14 @@ struct CriterionEvaluationSheet: View {
         evaluation.rating = criterion?.kind == .yesNo ? nil : rating
         evaluation.reason = reason.popTrimmed
         evaluation.confidence = confidence
-        store.send(.saveEvaluation(decisionID: decisionID, optionID: optionID, evaluation: evaluation))
-        dismiss()
+        submission.run(store, .saveEvaluation(decisionID: decisionID, optionID: optionID, evaluation: evaluation)) { dismiss() }
     }
 }
 
 // MARK: - Evidence link picker
 
 struct EvidenceLinkPicker: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -514,6 +512,7 @@ struct EvidenceLinkPicker: View {
                         POPSecondaryButton(title: "Add New Evidence", icon: "plus") {
                             showNewEvidence = true
                         }
+                        .popRequiresConnection()
                     }
 
                     Color.clear.frame(height: 8)
@@ -525,7 +524,7 @@ struct EvidenceLinkPicker: View {
             .navigationTitle("Link Evidence")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(POPFont.bodyMedium)
                         .foregroundStyle(POPColor.brandOrange)

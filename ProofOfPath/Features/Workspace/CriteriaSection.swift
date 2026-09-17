@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct CriteriaSection: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
 
     @State private var editingCriterion: Criterion?
@@ -213,13 +213,16 @@ struct CriteriaSection: View {
                 editingCriterion = nil
                 showEditor = true
             }
+            .popRequiresConnection()
             HStack(spacing: 10) {
                 POPSecondaryButton(title: "Balance Criteria", icon: "equal.circle") {
                     store.send(.balanceCriteriaWeights(decisionID: decisionID))
                 }
+                .popRequiresConnection()
                 POPSecondaryButton(title: "Add from Structure", icon: "square.grid.2x2") {
                     showTemplatePicker = true
                 }
+                .popRequiresConnection()
             }
         }
     }
@@ -373,7 +376,7 @@ struct CriterionRow: View {
 /// ScrollView needs a hard-coded height, which breaks at larger text sizes,
 /// and buttons are reachable with VoiceOver and Switch Control too.
 struct ReorderableCriteriaList: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
     let criteria: [Criterion]
 
@@ -435,15 +438,21 @@ struct ReorderableCriteriaList: View {
     /// `to` follows the `move(fromOffsets:toOffset:)` convention, where moving
     /// down needs the index after the target.
     private func move(from index: Int, to destination: Int) {
-        store.send(.moveCriteria(decisionID: decisionID, from: IndexSet(integer: index), to: destination))
+        var ids = criteria.map(\.id)
+        ids.move(fromOffsets: IndexSet(integer: index), toOffset: destination)
+        store.send(.setCriteriaOrder(decisionID: decisionID, ids: ids))
     }
 }
 
 // MARK: - Criterion editor
 
 struct CriterionEditorSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    /// Fixed for the life of the sheet, so saving again after a lost response
+    /// updates the same record instead of creating a second one.
+    @State private var newRecordID = UUID()
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     let existing: Criterion?
@@ -642,14 +651,12 @@ struct CriterionEditorSheet: View {
             .navigationTitle(existing == nil ? "Add Criterion" : "Edit Criterion")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(title: "Save", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
                 }
             }
         }
@@ -679,7 +686,7 @@ struct CriterionEditorSheet: View {
             Haptics.error()
             return
         }
-        var criterion = existing ?? Criterion()
+        var criterion = existing ?? Criterion(id: newRecordID)
         criterion.name = name.popTrimmed
         criterion.details = details.popTrimmed
         criterion.importance = importance
@@ -689,20 +696,19 @@ struct CriterionEditorSheet: View {
         criterion.minimumAcceptableValue = minimumAcceptable.popTrimmed
         criterion.weight = max(0, min(100, weight ?? 0))
 
-        if existing == nil {
-            store.send(.addCriterion(decisionID: decisionID, criterion: criterion))
-        } else {
-            store.send(.updateCriterion(decisionID: decisionID, criterion: criterion))
-        }
-        dismiss()
+        let intent: AppIntent = existing == nil
+            ? .addCriterion(decisionID: decisionID, criterion: criterion)
+            : .updateCriterion(decisionID: decisionID, criterion: criterion)
+        submission.run(store, intent) { dismiss() }
     }
 }
 
 // MARK: - Template criteria picker
 
 struct TemplateCriteriaPicker: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
 
@@ -831,11 +837,11 @@ struct TemplateCriteriaPicker: View {
             .navigationTitle("Review Suggested Criteria")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Add \(selectedNames.count)") { add() }
                         .font(POPFont.bodyMedium)
                         .foregroundStyle(selectedNames.isEmpty ? POPColor.inkTertiary : POPColor.brandOrange)
@@ -848,7 +854,6 @@ struct TemplateCriteriaPicker: View {
     private func add() {
         guard let template = selectedTemplate, !selectedNames.isEmpty else { return }
         let chosen = template.criteria.filter { selectedNames.contains($0.name) }
-        store.send(.applyTemplateCriteria(decisionID: decisionID, templateID: template.id, criteria: chosen))
-        dismiss()
+        submission.run(store, .applyTemplateCriteria(decisionID: decisionID, templateID: template.id, criteria: chosen)) { dismiss() }
     }
 }

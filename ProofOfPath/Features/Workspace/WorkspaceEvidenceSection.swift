@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct WorkspaceEvidenceSection: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
 
     @State private var tab: EvidenceTab = .evidence
@@ -67,7 +67,7 @@ struct WorkspaceEvidenceSection: View {
             .sheet(item: $openClaim) { claim in
                 ClaimDetailSheet(decisionID: decisionID, claimID: claim.id)
             }
-            .navigationDestination(item: $route) { destination in
+            .popNavigationDestination(item: $route) { destination in
                 if case .evidenceDetail(let id) = destination {
                     EvidenceDetailView(evidenceID: id)
                 }
@@ -104,6 +104,7 @@ struct WorkspaceEvidenceSection: View {
                 POPPrimaryButton(title: "Add Evidence", icon: "plus") {
                     showEvidenceEditor = true
                 }
+                .popRequiresConnection()
             }
         }
     }
@@ -160,6 +161,7 @@ struct WorkspaceEvidenceSection: View {
                 POPPrimaryButton(title: "Add Claim", icon: "plus") {
                     showClaimEditor = true
                 }
+                .popRequiresConnection()
             }
         }
     }

@@ -2,7 +2,9 @@
 //  AttachmentStore.swift
 //  ProofOfPath
 //
-//  Files the user attaches live next to the JSON store, referenced by file name.
+//  Local copies of attachment files, referenced by file name. The server holds
+//  the originals; a file picked on this device is kept here until it has been
+//  uploaded, and files downloaded for viewing stay here as a cache.
 //
 
 import Foundation
@@ -31,12 +33,52 @@ final class AttachmentStore {
     static let maxBytes: Int64 = 25 * 1024 * 1024
 
     private var rootURL: URL {
-        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("ProofPath", isDirectory: true)
             .appendingPathComponent("Attachments", isDirectory: true)
         if !FileManager.default.fileExists(atPath: base.path) {
             try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+            var url = base
+            var values = URLResourceValues()
+            // Copies of server files: no reason to put them in iCloud backups.
+            values.isExcludedFromBackup = true
+            try? url.setResourceValues(values)
         }
         return base
+    }
+
+    /// Where version 1.0 kept attachments. Not migrated; removed with the user's data.
+    private var legacyRootURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Attachments", isDirectory: true)
+    }
+
+    func removeLegacyFiles() {
+        try? FileManager.default.removeItem(at: legacyRootURL)
+    }
+
+    /// Keeps a downloaded server file for offline viewing.
+    func storeDownloaded(_ data: Data, fileName: String) throws {
+        guard AttachmentStore.isValidFileName(fileName), let destination = safeURL(for: fileName) else {
+            throw AttachmentError.unreadable
+        }
+        try data.write(to: destination, options: [.atomic, .completeFileProtection])
+    }
+
+    /// The server's naming rule: "<UUID>.<ext>", uppercase UUID, short lowercase extension.
+    static func isValidFileName(_ name: String) -> Bool {
+        name.range(of: #"^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\.[a-z0-9]{1,10}$"#,
+                   options: .regularExpression) != nil
+    }
+
+    /// Lowercase letters and digits only, at most ten, so the name always
+    /// matches the server's rule.
+    private static func safeExtension(_ raw: String) -> String {
+        let cleaned = raw.lowercased().unicodeScalars
+            .filter { ("a"..."z").contains($0) || ("0"..."9").contains($0) }
+            .map(String.init)
+            .joined()
+        return cleaned.isEmpty || cleaned.count > 10 ? "dat" : cleaned
     }
 
     /// File names come from the stored JSON, which the user can replace via
@@ -83,7 +125,7 @@ final class AttachmentStore {
         let size = Int64(values?.fileSize ?? 0)
         if size > Self.maxBytes { throw AttachmentError.tooLarge(size) }
 
-        let ext = sourceURL.pathExtension.isEmpty ? "dat" : sourceURL.pathExtension.lowercased()
+        let ext = Self.safeExtension(sourceURL.pathExtension)
         let fileName = "\(UUID().uuidString).\(ext)"
         let destination = url(for: fileName)
 
@@ -171,11 +213,16 @@ final class AttachmentStore {
 
     /// Removes attachment files that nothing references any more.
     @discardableResult
-    func pruneOrphans(referenced: Set<String>) -> Int {
+    func pruneOrphans(referenced: Set<String>, keepingFilesCreatedAfter cutoff: Date? = nil) -> Int {
         guard let contents = try? FileManager.default.contentsOfDirectory(atPath: rootURL.path) else { return 0 }
         let referencedNames = Set(referenced.map { ($0 as NSString).lastPathComponent })
         var removed = 0
         for name in contents where !referencedNames.contains(name) {
+            if let cutoff,
+               let created = (try? url(for: name).resourceValues(forKeys: [.creationDateKey]))?.creationDate,
+               created >= cutoff {
+                continue
+            }
             try? FileManager.default.removeItem(at: url(for: name))
             removed += 1
         }

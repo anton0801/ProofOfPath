@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct BriefSection: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
 
     @State private var showEdit = false
@@ -41,11 +41,9 @@ struct BriefSection: View {
                     criteria: decision.sortedCriteria,
                     existing: editingConstraint
                 ) { constraint in
-                    if editingConstraint == nil {
-                        store.send(.addConstraint(decisionID: decisionID, constraint: constraint))
-                    } else {
-                        store.send(.updateConstraint(decisionID: decisionID, constraint: constraint))
-                    }
+                    await store.perform(editingConstraint == nil
+                        ? .addConstraint(decisionID: decisionID, constraint: constraint)
+                        : .updateConstraint(decisionID: decisionID, constraint: constraint))
                 }
             }
             .alert(
@@ -113,7 +111,7 @@ struct BriefSection: View {
 
     private func limitsCard(_ decision: Decision) -> some View {
         VStack(alignment: .leading, spacing: 11) {
-            POPSectionHeader(title: "Limits", icon: "gauge.with.dots.needle.bottom.50percent")
+            POPSectionHeader(title: "Limits", icon: POPSymbol.limits)
 
             POPKeyValueRow(label: "Budget", value: budgetSummary(decision), icon: "banknote")
             POPDivider()
@@ -195,6 +193,7 @@ struct BriefSection: View {
                 editingConstraint = nil
                 showConstraintSheet = true
             }
+            .popRequiresConnection()
         }
         .popCard()
     }
@@ -353,8 +352,9 @@ struct ConstraintRow: View {
 // MARK: - Edit brief
 
 struct EditBriefSheet: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
 
@@ -477,14 +477,12 @@ struct EditBriefSheet: View {
             .navigationTitle("Edit Brief")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(POPColor.inkSecondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .font(POPFont.bodyMedium)
-                        .foregroundStyle(isValid ? POPColor.brandOrange : POPColor.inkTertiary)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    POPToolbarSaveButton(title: "Save", isSaving: submission.isRunning, isHighlighted: isValid) { save() }
                 }
             }
         }
@@ -528,7 +526,6 @@ struct EditBriefSheet: View {
         brief.currencyCode = currencyCode
         brief.deadline = deadline
         brief.preferredCompletionDate = preferredDate
-        store.send(.updateDecisionBrief(decisionID: decisionID, brief: brief))
-        dismiss()
+        submission.run(store, .updateDecisionBrief(decisionID: decisionID, brief: brief)) { dismiss() }
     }
 }

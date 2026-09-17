@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct DecisionSummaryView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
     let decisionID: UUID
@@ -72,8 +72,13 @@ struct DecisionSummaryView: View {
             TextField("Why are you reopening it?", text: $reopenReason)
             Button("Cancel", role: .cancel) { reopenReason = "" }
             Button("Reopen") {
-                store.send(.reopenDecision(decisionID: decisionID, reason: reopenReason))
-                reopenReason = ""
+                let reason = reopenReason
+                Task {
+                    // The reason is kept if the save fails, so it is still there next time.
+                    if await store.perform(.reopenDecision(decisionID: decisionID, reason: reason)) {
+                        reopenReason = ""
+                    }
+                }
             }
         } message: {
             Text("The current version stays available in History as a read-only snapshot. New changes are saved as a new version.")
@@ -331,10 +336,12 @@ struct DecisionSummaryView: View {
                 POPSecondaryButton(title: "Mark Purchase Completed", icon: "checkmark.circle") {
                     store.send(.markPurchaseCompleted(decisionID: decisionID))
                 }
+                .popRequiresConnection()
             }
             POPSecondaryButton(title: "Reopen Decision", icon: "arrow.uturn.backward", tint: POPColor.brandOrange) {
                 showReopen = true
             }
+            .popRequiresConnection()
             POPInlineNote(text: "The export contains only what you entered, plus the date it was created.")
         }
     }

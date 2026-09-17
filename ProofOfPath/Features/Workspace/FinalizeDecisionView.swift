@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct FinalizeDecisionView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
 
@@ -385,13 +386,15 @@ struct FinalizeDecisionView: View {
 
     private func actions(report: ReadinessReport) -> some View {
         VStack(spacing: 10) {
-            POPPrimaryButton(title: "Finalize Decision", icon: "checkmark.seal", isEnabled: canFinalize) {
+            POPPrimaryButton(title: "Finalize Decision", icon: "checkmark.seal",
+                             isEnabled: canFinalize && store.canEdit, isLoading: submission.isRunning) {
                 showConfirm = true
             }
             HStack(spacing: 10) {
                 POPSecondaryButton(title: "Save as Draft", icon: "tray.and.arrow.down") {
                     saveDraft()
                 }
+                .popRequiresConnection()
                 POPSecondaryButton(title: "Back to Compare", icon: "tablecells") {
                     dismiss()
                 }
@@ -464,7 +467,6 @@ struct FinalizeDecisionView: View {
             Haptics.error()
             return
         }
-        store.send(.finalizeDecision(decisionID: decisionID, decisionRecord: buildRecord()))
-        dismiss()
+        submission.run(store, .finalizeDecision(decisionID: decisionID, decisionRecord: buildRecord())) { dismiss() }
     }
 }

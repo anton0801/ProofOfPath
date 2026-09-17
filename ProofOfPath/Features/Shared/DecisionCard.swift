@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct DecisionCard: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
 
     let decision: Decision
     var showsNextAction: Bool = true

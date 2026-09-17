@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct CompareSection: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
 
     private var decision: Decision? { store.state.decision(id: decisionID) }
@@ -39,7 +39,7 @@ struct CompareSection: View {
                         primaryLinkLabel(title: "Open Comparison Matrix", icon: "tablecells")
                     }
                     NavigationLink(value: AppRoute.scenarioLab(decisionID)) {
-                        secondaryLinkLabel(title: "Scenario Lab", icon: "flask")
+                        secondaryLinkLabel(title: "Scenario Lab", icon: POPSymbol.scenarioLab)
                     }
                     NavigationLink(value: AppRoute.costView(decisionID)) {
                         secondaryLinkLabel(title: "Total Cost View", icon: "banknote")

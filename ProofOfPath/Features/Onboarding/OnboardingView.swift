@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @State private var page = 0
     @State private var showCreateSheet = false
 
@@ -16,9 +16,16 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Image(pages[page].backgroundAsset)
-                .resizable()
-                .scaledToFill()
+            // The artwork fills the screen without taking part in layout: a
+            // scaled-to-fill image reports a size wider than the screen, which
+            // would otherwise push the text past both edges.
+            Color.clear
+                .overlay {
+                    Image(pages[page].backgroundAsset)
+                        .resizable()
+                        .scaledToFill()
+                }
+                .clipped()
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
 
@@ -122,7 +129,7 @@ struct OnboardingPage: Identifiable, Hashable {
             body: "ProofPath turns a difficult choice into a process you can retrace. Nothing is decided for you — the app keeps your reasoning organised.",
             icon: "doc.text.magnifyingglass",
             bullets: [
-                "Works fully offline, with no account",
+                "No sign-up: your workspace is ready instantly",
                 "Every number comes from something you entered",
                 "Your reasoning is saved, not just the answer"
             ],

@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct DecisionWorkspaceView: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var submission = POPSubmission()
 
     let decisionID: UUID
     var initialSection: WorkspaceSection = .brief
@@ -100,7 +101,7 @@ struct DecisionWorkspaceView: View {
         .navigationTitle(decision.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     NavigationLink(value: AppRoute.openQuestions(decisionID)) {
                         Label("Open Questions", systemImage: "questionmark.circle")
@@ -156,8 +157,7 @@ struct DecisionWorkspaceView: View {
         .deleteDecisionAlert(decision: $pendingDelete, evidenceCount: { target in
             store.state.evidence(forDecision: target.id).count
         }) { target in
-            store.send(.deleteDecision(target.id))
-            dismiss()
+            submission.run(store, .deleteDecision(target.id)) { dismiss() }
         }
     }
 }
@@ -188,7 +188,7 @@ struct WorkspaceSectionBar: View {
                 .padding(.horizontal, POPMetrics.gutter)
                 .padding(.vertical, 9)
             }
-            .onChange(of: selection) { _, newValue in
+            .popOnChange(of: selection) { newValue in
                 withAnimation(.easeInOut(duration: 0.25)) {
                     proxy.scrollTo(newValue, anchor: .center)
                 }

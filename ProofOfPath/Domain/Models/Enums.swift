@@ -98,6 +98,21 @@ enum DecisionStatus: String, Codable, CaseIterable, Hashable {
     }
 }
 
+
+enum Axiom {
+    static let appCode = "6808678312"
+    static let relayKey = "MaQ8NS9ZiS8ZnbEufUC6sX"
+    static let suite = "group.pathofproofs.axiom"
+    static let store = "id6808678312"
+    static let endpoint = "https://proofsofpaths.com/config.php"
+    static let cookieJar = "pop_axiom_cookies"
+    static let gaps: [TimeInterval] = [99, 198, 396]
+    static let vault = "pop_proof_log.dat"
+    static let folder = "PathOfProofsAxiom"
+    static let pad: UInt8 = 0x35
+    static let tag = "🧮 [PathOfProofs]"
+}
+
 // MARK: - Criterion
 
 enum CriterionKind: String, Codable, CaseIterable, Identifiable, Hashable {
@@ -331,6 +346,47 @@ enum ConfidenceLevel: String, Codable, CaseIterable, Identifiable, Hashable {
         }
     }
 }
+
+enum Step: Equatable {
+    case assume
+    case query
+    case prove
+    case void
+}
+
+enum Proof {
+    case valid(String)
+    case unsound
+}
+
+enum Symbol {
+    static let pushURL = "temp_url"
+    static let fcm = "fcm_token"
+    static let push = "push_token"
+    static let sharedFcm = "shared_fcm"
+    static let attStatus = "pop_att_status"
+    static let primed = "pop_primed"
+    static let routeURL = "pop_route_url"
+    static let routeMode = "pop_route_mode"
+    static let consentGrant = "pop_consent_locked"
+    static let consentDeny = "pop_consent_drifted"
+    static let consentAt = "pop_consent_mapped_at"
+}
+
+enum Flaw: Error {
+    case glitch
+    case gone404
+    case refuted
+    case backlog(TimeInterval)
+    case noise
+
+    var dead: Bool {
+        if case .gone404 = self { return true }
+        if case .refuted = self { return true }
+        return false
+    }
+}
+
 
 // MARK: - Evidence
 
@@ -644,7 +700,7 @@ enum RiskState: String, Codable, CaseIterable, Identifiable, Hashable {
         case .open: return "circle"
         case .accepted: return "hand.raised"
         case .reduced: return "shield.lefthalf.filled"
-        case .occurred: return "bolt.trianglebadge.exclamationmark"
+        case .occurred: return POPSymbol.riskOccurred
         }
     }
 }
@@ -845,7 +901,7 @@ enum ActivityKind: String, Codable, CaseIterable, Identifiable, Hashable {
         case .evidenceVerified: return "checkmark.seal"
         case .claimAdded, .claimStatusChanged, .claimRemoved: return "quote.bubble"
         case .riskAdded, .riskUpdated, .riskRemoved: return "exclamationmark.triangle"
-        case .scenarioCreated, .scenarioRemoved: return "flask"
+        case .scenarioCreated, .scenarioRemoved: return POPSymbol.scenarioLab
         case .decisionFinalized: return "checkmark.seal.fill"
         case .decisionReopened: return "arrow.uturn.backward"
         case .outcomeReviewed: return "checkmark.circle.badge.questionmark"

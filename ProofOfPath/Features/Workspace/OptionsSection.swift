@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct OptionsSection: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
     let decisionID: UUID
 
     @State private var showEditor = false
@@ -55,12 +55,13 @@ struct OptionsSection: View {
                         editingOption = nil
                         showEditor = true
                     }
+                    .popRequiresConnection()
                 }
             }
             .sheet(isPresented: $showEditor, onDismiss: { editingOption = nil }) {
                 OptionEditorSheet(decisionID: decisionID, existing: editingOption)
             }
-            .navigationDestination(item: $route) { destination in
+            .popNavigationDestination(item: $route) { destination in
                 if case .optionDetail(let decisionID, let optionID) = destination {
                     OptionDetailView(decisionID: decisionID, optionID: optionID)
                 }
@@ -133,7 +134,7 @@ struct OptionsSection: View {
             }
             .padding(.horizontal, 1)
         }
-        .scrollClipDisabled()
+        .popScrollClipDisabled()
     }
 
     // MARK: List
@@ -181,7 +182,7 @@ struct OptionsSection: View {
 // MARK: - Option card
 
 struct OptionCard: View {
-    @Environment(AppStore.self) private var store
+    @EnvironmentObject private var store: AppStore
 
     let option: DecisionOption
     let decision: Decision
