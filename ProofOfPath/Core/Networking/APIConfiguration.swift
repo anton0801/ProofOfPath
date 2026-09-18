@@ -9,7 +9,7 @@ import Foundation
 
 enum APIConfiguration {
 
-    static let productionBaseURL = URL(string: "https://proofofpaths.space/api/v1")!
+    static let productionBaseURL = URL(string: "https://proofsofpathsapp.site/api/v1")!
 
     /// Every build talks to production. Debug builds can point elsewhere — a
     /// local server, a staging host — with a launch argument
